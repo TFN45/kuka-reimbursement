@@ -2,7 +2,7 @@
   "name": "KUKA OS Expense Reimbursement",
   "short_name": "KUKA Reimb.",
   "description": "Expense reimbursement form with receipt photo attachments",
-  "start_url": "./kuka_reimbursement.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#F4F4F2",
   "theme_color": "#1B1D20",
