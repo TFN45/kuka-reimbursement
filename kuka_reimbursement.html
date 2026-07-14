@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>KUKA OS — Expense Reimbursement Form</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1B1D20">
+<link rel="icon" href="icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KUKA Reimb.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --kuka:#FF5A00;
+  --kuka-dark:#E04E00;
+  --ink:#1B1D20;
+  --ink-2:#5A5F66;
+  --bg:#F4F4F2;
+  --card:#FFFFFF;
+  --line:#E3E3DF;
+  --ok:#0E8A4D;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{font-size:16px}
+body{
+  font-family:'Noto Sans Thai',system-ui,sans-serif;
+  background:var(--bg);color:var(--ink);
+  min-height:100vh;padding-bottom:120px;
+}
+
+/* ===== Header ===== */
+header{background:var(--ink);color:#fff;padding:18px 16px 16px}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.brand-mark{
+  background:var(--kuka);color:#fff;font-weight:700;
+  font-family:'IBM Plex Mono',monospace;font-size:.8rem;
+  padding:3px 8px;letter-spacing:.12em;
+}
+.brand h1{font-size:1.05rem;font-weight:600}
+header p{font-size:.78rem;color:#B9BDC2}
+
+/* ===== Sections ===== */
+main{padding:14px 14px 0;max-width:560px;margin:0 auto}
+.section-label{
+  font-size:.72rem;font-weight:600;letter-spacing:.1em;
+  color:var(--ink-2);text-transform:uppercase;
+  margin:18px 2px 8px;display:flex;align-items:center;gap:8px;
+}
+.section-label::after{content:"";flex:1;height:1px;background:var(--line)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.field{margin-bottom:12px}
+.field:last-child{margin-bottom:0}
+.field label{display:block;font-size:.8rem;font-weight:600;color:var(--ink-2);margin-bottom:5px}
+.field input{
+  width:100%;font-family:inherit;font-size:1rem;
+  padding:11px 12px;border:1px solid var(--line);
+  border-radius:8px;background:#FAFAF8;color:var(--ink);appearance:none;
+}
+.field input:focus{outline:2px solid var(--kuka);outline-offset:-1px;background:#fff}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* ===== Entry list ===== */
+.entry{
+  background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:12px 14px;margin-bottom:10px;
+  display:flex;gap:12px;align-items:flex-start;
+}
+.entry-date{
+  font-family:'IBM Plex Mono',monospace;font-size:.72rem;font-weight:600;
+  color:var(--kuka-dark);background:#FFF0E8;
+  border-radius:6px;padding:6px 7px;text-align:center;min-width:52px;line-height:1.3;
+}
+.entry-body{flex:1;min-width:0}
+.entry-desc{font-weight:600;font-size:.95rem;word-wrap:break-word}
+.entry-purpose{font-size:.8rem;color:var(--ink-2);margin-top:2px;word-wrap:break-word}
+.entry-amt{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:.95rem;white-space:nowrap;margin-top:2px}
+.entry-thumb{
+  margin-top:8px;display:inline-flex;align-items:center;gap:7px;
+  border:1px solid var(--line);border-radius:8px;padding:4px 10px 4px 4px;
+  background:#FAFAF8;cursor:pointer;font-size:.75rem;color:var(--ink-2);
+}
+.entry-thumb img{width:34px;height:34px;object-fit:cover;border-radius:5px;display:block}
+.entry-actions{display:flex;flex-direction:column;gap:6px}
+.icon-btn{
+  border:1px solid var(--line);background:#fff;border-radius:7px;
+  width:32px;height:32px;font-size:.85rem;cursor:pointer;color:var(--ink-2);
+  display:flex;align-items:center;justify-content:center;
+}
+.icon-btn:active{background:var(--bg)}
+.empty{
+  text-align:center;color:var(--ink-2);font-size:.85rem;
+  padding:26px 10px;border:1.5px dashed var(--line);border-radius:12px;
+}
+
+/* ===== Buttons ===== */
+.btn{
+  font-family:inherit;font-size:1rem;font-weight:600;
+  border:none;border-radius:10px;padding:13px 16px;cursor:pointer;width:100%;
+}
+.btn-primary{background:var(--kuka);color:#fff}
+.btn-primary:active{background:var(--kuka-dark)}
+.btn-primary:disabled{opacity:.55}
+.btn-ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+.btn-sm{font-size:.85rem;padding:10px 12px}
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+
+/* ===== Storage banner ===== */
+.storage-note{
+  font-size:.75rem;border-radius:10px;padding:10px 12px;margin-top:10px;display:none;
+}
+.storage-note.warn{display:block;color:var(--ink-2);background:#FFF6EF;border:1px solid #FFD9C2}
+.storage-note.good{display:block;color:#0B5E36;background:#EDF8F1;border:1px solid #BFE5CE}
+
+/* ===== Receipt attach ===== */
+.attach-zone{
+  border:1.5px dashed var(--line);border-radius:10px;background:#FAFAF8;
+  padding:14px;text-align:center;cursor:pointer;color:var(--ink-2);font-size:.85rem;
+}
+.attach-zone strong{color:var(--kuka-dark)}
+.attach-preview{position:relative;display:none}
+.attach-preview img{width:100%;max-height:220px;object-fit:contain;border-radius:10px;border:1px solid var(--line);background:#fff}
+.attach-remove{
+  position:absolute;top:8px;right:8px;
+  background:rgba(27,29,32,.85);color:#fff;border:none;border-radius:8px;
+  padding:6px 12px;font-family:inherit;font-size:.78rem;font-weight:600;cursor:pointer;
+}
+.attach-status{font-size:.75rem;color:var(--ink-2);margin-top:6px;min-height:1em;text-align:center}
+
+/* ===== Sticky total bar ===== */
+.totalbar{
+  position:fixed;left:0;right:0;bottom:0;z-index:50;
+  background:var(--ink);color:#fff;
+  padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+}
+.totalbar-inner{max-width:560px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.totalbar .t-label{font-size:.72rem;color:#B9BDC2;letter-spacing:.08em}
+.totalbar .t-value{font-family:'IBM Plex Mono',monospace;font-size:1.35rem;font-weight:600}
+.totalbar .t-value small{font-size:.75rem;font-weight:500;color:#B9BDC2}
+.totalbar button{
+  background:var(--kuka);color:#fff;border:none;border-radius:9px;
+  font-family:inherit;font-size:.9rem;font-weight:600;padding:11px 18px;cursor:pointer;white-space:nowrap;
+}
+.saved-note{font-size:.72rem;color:var(--ok);margin-top:6px;text-align:center;height:1em}
+
+/* ===== Modal sheet ===== */
+.overlay{
+  position:fixed;inset:0;background:rgba(20,22,24,.55);z-index:100;
+  display:none;align-items:flex-end;justify-content:center;
+}
+.overlay.open{display:flex}
+.sheet{
+  background:#fff;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;
+  border-radius:16px 16px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));
+  animation:up .18s ease-out;
+}
+@keyframes up{from{transform:translateY(30px);opacity:.6}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.sheet{animation:none}}
+.sheet h2{font-size:1rem;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+.sheet h2 button{border:none;background:none;font-size:1.3rem;cursor:pointer;color:var(--ink-2);padding:4px 8px}
+
+/* ===== Image viewer ===== */
+.viewer{
+  position:fixed;inset:0;background:rgba(15,16,18,.92);z-index:200;
+  display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:16px;
+}
+.viewer.open{display:flex}
+.viewer img{max-width:100%;max-height:80vh;border-radius:8px;background:#fff}
+.viewer button{
+  background:#fff;color:var(--ink);border:none;border-radius:9px;
+  font-family:inherit;font-size:.9rem;font-weight:600;padding:10px 22px;cursor:pointer;
+}
+
+/* ===== Print: formal English corporate layout ===== */
+.printpage{display:none}
+@media print{
+  body{background:#fff;padding:0}
+  header,main,.totalbar,.overlay,.viewer{display:none !important}
+  .printpage{display:block;font-family:'Noto Sans Thai',Arial,sans-serif;color:#000;font-size:11pt}
+  .pp-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:12px}
+  .pp-head .pp-org{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:10pt;letter-spacing:.08em}
+  .pp-title{font-weight:700;font-size:13.5pt}
+  .pp-sub{font-size:9pt;color:#333;text-align:right}
+  .pp-line{font-size:10.5pt;margin-bottom:3px;display:flex}
+  .pp-line b{font-weight:600;white-space:nowrap}
+  .pp-line span{border-bottom:1px dotted #000;flex:1;margin-left:6px;padding:0 4px}
+  table.pp{width:100%;border-collapse:collapse;margin-top:10px;font-size:9.5pt}
+  table.pp th,table.pp td{border:1px solid #000;padding:3px 5px;vertical-align:top}
+  table.pp th{background:#eee;font-weight:600;text-align:center}
+  table.pp td.c{text-align:center}
+  table.pp td.r{text-align:right;font-family:'IBM Plex Mono',monospace}
+  .pp-total td{font-weight:700}
+  .pp-decl{font-size:9pt;color:#222;margin-top:12px;line-height:1.45}
+  .pp-sign{display:flex;justify-content:space-between;margin-top:32px;font-size:10.5pt}
+  .pp-sign div{text-align:center;width:45%}
+  .pp-sign .sig-line{border-bottom:1px dotted #000;height:32px;margin-bottom:4px}
+  .pp-sign .sig-role{font-weight:600}
+  .pp-sign .sig-date{margin-top:10px;font-size:9.5pt}
+  .pp-receipt{page-break-before:always;text-align:center}
+  .pp-receipt h3{font-size:11pt;font-weight:600;margin-bottom:8px;text-align:left}
+  .pp-receipt img{max-width:100%;max-height:225mm;border:1px solid #999}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="brand-mark">KUKA OS</span>
+    <h1>Expense Reimbursement</h1>
+  </div>
+  <p>Original-quality receipts · Saved on this device · Export as formal PDF</p>
+</header>
+
+<main>
+  <div class="storage-note" id="storageNote"></div>
+
+  <div class="section-label">Employee Details</div>
+  <div class="card">
+    <div class="row2">
+      <div class="field"><label>Full Name</label><input id="empName" placeholder="First name, Last name"></div>
+      <div class="field"><label>Employee ID</label><input id="empId" placeholder="e.g. TH-1234"></div>
+    </div>
+    <div class="field"><label>Position / Job Title</label><input id="empPosition" placeholder="e.g. Project Engineer"></div>
+    <div class="field"><label>Reporting Month</label><input id="empMonth" type="month"></div>
+  </div>
+
+  <div class="section-label">Approval</div>
+  <div class="card">
+    <div class="field"><label>Approving Manager — Name</label><input id="mgrName" placeholder="Manager's full name"></div>
+    <div class="field"><label>Approving Manager — Position</label><input id="mgrPosition" placeholder="e.g. Operations Manager"></div>
+  </div>
+
+  <div class="section-label">Expense Items</div>
+  <div id="entryList"></div>
+  <div class="empty" id="emptyState">No expense items yet — tap "Add Expense" to begin.</div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="openSheet()">＋ Add Expense</button>
+    <button class="btn btn-ghost" onclick="clearAll()">Clear All Items</button>
+  </div>
+
+  <div class="section-label">Data Backup</div>
+  <div class="btn-row" style="margin-top:0">
+    <button class="btn btn-ghost btn-sm" onclick="exportBackup()">⬇ Back Up Data (.json)</button>
+    <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importFile').click()">⬆ Restore Data</button>
+    <input type="file" id="importFile" accept=".json,application/json" style="display:none">
+  </div>
+  <div class="saved-note" id="savedNote"></div>
+</main>
+
+<div class="totalbar">
+  <div class="totalbar-inner">
+    <div>
+      <div class="t-label">TOTAL</div>
+      <div class="t-value" id="totalDisplay">0.00 <small>THB</small></div>
+    </div>
+    <button onclick="window.print()">🖨 Export PDF</button>
+  </div>
+</div>
+
+<!-- Add/Edit sheet -->
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h2><span id="sheetTitle">Add Expense</span><button onclick="closeSheet()" aria-label="Close">✕</button></h2>
+    <div class="field"><label>Date</label><input id="fDate" type="date"></div>
+    <div class="field"><label>Location / Site</label><input id="fLocation" placeholder="e.g. DENSO Plant, Chonburi"></div>
+    <div class="field"><label>Description</label><input id="fDesc" placeholder="e.g. Fuel, toll fees, hotel accommodation"></div>
+    <div class="field"><label>Business Purpose</label><input id="fPurpose" placeholder="e.g. Customer site visit — DENSO plant, Chonburi"></div>
+    <div class="field"><label>Amount (THB)</label><input id="fAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00"></div>
+
+    <div class="field">
+      <label>Receipt</label>
+      <input type="file" id="fReceipt" accept="image/*" style="display:none">
+      <div class="attach-zone" id="attachZone" onclick="document.getElementById('fReceipt').click()">
+        📷 <strong>Take photo / choose receipt image</strong><br><span id="attachHint">Stored at 100% original quality</span>
+      </div>
+      <div class="attach-preview" id="attachPreview">
+        <img id="attachImg" alt="Receipt">
+        <button class="attach-remove" onclick="removeReceipt(event)">✕ Remove image</button>
+      </div>
+      <div class="attach-status" id="attachStatus"></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeSheet()">Cancel</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="saveEntry()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Full-screen receipt viewer -->
+<div class="viewer" id="viewer" onclick="closeViewer()">
+  <img id="viewerImg" alt="Receipt">
+  <button onclick="closeViewer()">Close</button>
+</div>
+
+<!-- Print layout -->
+<div class="printpage" id="printPage"></div>
+
+<script>
+/* =========================================================
+   STORAGE — priority order
+   1) IndexedDB      : hundreds of MB → receipts stored as
+                       original files, no compression
+   2) window.storage : (inside Claude) moderate compression
+   3) localStorage   : ~5MB → strong compression
+   4) memory         : temporary + backup warning
+========================================================= */
+const hasClaudeStorage=typeof window.storage!=='undefined'&&window.storage&&typeof window.storage.get==='function';
+let hasLocalStorage=false;
+try{localStorage.setItem('__t','1');localStorage.removeItem('__t');hasLocalStorage=true;}catch(e){}
+const memStore={};
+let idb=null;
+let MODE='memory';
+
+function openIDB(){
+  return new Promise((resolve,reject)=>{
+    if(!window.indexedDB)return reject(new Error('no idb'));
+    const rq=indexedDB.open('kuka-reimb',1);
+    rq.onupgradeneeded=()=>{
+      const d=rq.result;
+      if(!d.objectStoreNames.contains('kv'))d.createObjectStore('kv');
+      if(!d.objectStoreNames.contains('receipts'))d.createObjectStore('receipts');
+    };
+    rq.onsuccess=()=>resolve(rq.result);
+    rq.onerror=()=>reject(rq.error);
+  });
+}
+function idbReq(storeName,mode,fn){
+  return new Promise((resolve,reject)=>{
+    const tx=idb.transaction(storeName,mode);
+    const rq=fn(tx.objectStore(storeName));
+    rq.onsuccess=()=>resolve(rq.result);
+    rq.onerror=()=>reject(rq.error);
+  });
+}
+const idbGet=(s,k)=>idbReq(s,'readonly',o=>o.get(k));
+const idbSet=(s,k,v)=>idbReq(s,'readwrite',o=>o.put(v,k));
+const idbDel=(s,k)=>idbReq(s,'readwrite',o=>o.delete(k));
+
+const kv={
+  async get(k){
+    if(MODE==='idb'){try{return (await idbGet('kv',k))??null;}catch(e){return null;}}
+    if(MODE==='claude'){try{const r=await window.storage.get(k);return r?r.value:null;}catch(e){return null;}}
+    if(MODE==='local'){try{return localStorage.getItem(k);}catch(e){return null;}}
+    return memStore[k]??null;
+  },
+  async set(k,v){
+    if(MODE==='idb'){await idbSet('kv',k,v);return;}
+    if(MODE==='claude'){await window.storage.set(k,v);return;}
+    if(MODE==='local'){localStorage.setItem(k,v);return;}
+    memStore[k]=v;
+  },
+  async del(k){
+    if(MODE==='idb'){try{await idbDel('kv',k);}catch(e){}return;}
+    if(MODE==='claude'){try{await window.storage.delete(k);}catch(e){}return;}
+    if(MODE==='local'){try{localStorage.removeItem(k);}catch(e){}return;}
+    delete memStore[k];
+  }
+};
+const rstore={
+  async get(id){
+    if(MODE==='idb'){try{return (await idbGet('receipts',id))??null;}catch(e){return null;}}
+    return kv.get('kuka-reimb-rcpt-'+id);
+  },
+  async set(id,val){
+    if(MODE==='idb'){await idbSet('receipts',id,val);return;}
+    await kv.set('kuka-reimb-rcpt-'+id,val);
+  },
+  async del(id){
+    if(MODE==='idb'){try{await idbDel('receipts',id);}catch(e){}return;}
+    await kv.del('kuka-reimb-rcpt-'+id);
+  }
+};
+
+const KEY='kuka-reimb-v1';
+const PKEY='kuka-reimb-profile';
+let state={emp:{name:'',id:'',month:''},entries:[]};
+let receipts={};
+let editIndex=null;
+let pendingReceipt=null;
+let pendingRemoved=false;
+const THB=n=>Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const fmtKB=n=>n>1048576?(n/1048576).toFixed(1)+' MB':Math.round(n/1024)+' KB';
+
+/* ---------- init / load ---------- */
+async function init(){
+  try{idb=await openIDB();
+    await idbSet('kv','__t','1');await idbDel('kv','__t');
+    MODE='idb';
+  }catch(e){
+    if(hasClaudeStorage)MODE='claude';
+    else if(hasLocalStorage)MODE='local';
+    else MODE='memory';
+  }
+  if(navigator.storage&&navigator.storage.persist){
+    try{await navigator.storage.persist();}catch(e){}
+  }
+  const note=document.getElementById('storageNote');
+  if(MODE==='idb'){
+    note.className='storage-note good';
+    note.innerHTML='✓ IndexedDB mode — data saved permanently on this device; receipts stored at <b>100% original quality</b>.';
+  }else if(MODE==='memory'){
+    note.className='storage-note warn';
+    note.innerHTML='⚠️ This browser does not support permanent storage — please tap <b>"Back Up Data (.json)"</b> before closing.';
+  }else if(MODE==='local'){
+    document.getElementById('attachHint').textContent='Limited storage mode — images will be resized';
+  }
+  await load();
+}
+async function load(){
+  try{const v=await kv.get(KEY);if(v)state=JSON.parse(v);}catch(e){}
+  try{
+    const pv=await kv.get(PKEY);
+    if(pv){const p=JSON.parse(pv);
+      ['name','id','position','mgrName','mgrPosition'].forEach(k=>{if(!state.emp[k]&&p[k])state.emp[k]=p[k];});}
+  }catch(e){}
+  state.entries.forEach(e=>{if(!e.id)e.id=uid();if(e.location===undefined)e.location='';});
+  for(const e of state.entries){
+    if(e.hasReceipt){
+      const v=await rstore.get(e.id);
+      if(v)receipts[e.id]=wrapReceipt(v);
+      else e.hasReceipt=false;
+    }
+  }
+  document.getElementById('empName').value=state.emp.name||'';
+  document.getElementById('empId').value=state.emp.id||'';
+  document.getElementById('empPosition').value=state.emp.position||'';
+  document.getElementById('mgrName').value=state.emp.mgrName||'';
+  document.getElementById('mgrPosition').value=state.emp.mgrPosition||'';
+  document.getElementById('empMonth').value=state.emp.month||'';
+  render();
+}
+function wrapReceipt(v){
+  if(v instanceof Blob)return{blob:v,url:URL.createObjectURL(v)};
+  return{dataUrl:v,url:v};
+}
+
+/* ---------- persist ---------- */
+let saveTimer=null;
+function persist(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(async()=>{
+    try{await kv.set(KEY,JSON.stringify(state));noteMsg('✓ Saved automatically');}
+    catch(e){noteMsg('');alert('Save failed (storage may be full) — please back up your data as a .json file.');}
+  },400);
+}
+function noteMsg(msg){
+  const n=document.getElementById('savedNote');
+  n.textContent=msg;setTimeout(()=>n.textContent='',2000);
+}
+let profTimer=null;
+function persistProfile(){
+  clearTimeout(profTimer);
+  profTimer=setTimeout(()=>{
+    kv.set(PKEY,JSON.stringify({name:state.emp.name,id:state.emp.id,position:state.emp.position,mgrName:state.emp.mgrName,mgrPosition:state.emp.mgrPosition})).catch(()=>{});
+  },600);
+}
+['empName','empId','empPosition','mgrName','mgrPosition','empMonth'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',e=>{
+    const map={empName:'name',empId:'id',empPosition:'position',mgrName:'mgrName',mgrPosition:'mgrPosition',empMonth:'month'};
+    state.emp[map[id]]=e.target.value;persist();
+    if(id!=='empMonth')persistProfile();
+  });
+});
+
+/* ---------- receipt pick ---------- */
+document.getElementById('fReceipt').addEventListener('change',async ev=>{
+  const file=ev.target.files[0];
+  if(!file)return;
+  const status=document.getElementById('attachStatus');
+  try{
+    if(MODE==='idb'){
+      pendingReceipt={blob:file,url:URL.createObjectURL(file)};
+      status.textContent='Original quality · '+fmtKB(file.size);
+    }else{
+      status.textContent='Resizing image…';
+      const cap=MODE==='claude'?3500000:450000;
+      const maxDim=MODE==='claude'?1600:1100;
+      const dataUrl=await compressImage(file,maxDim,cap);
+      pendingReceipt={dataUrl,url:dataUrl};
+      status.textContent='Resized to ~'+fmtKB(dataUrl.length*0.75);
+    }
+    pendingRemoved=false;
+    showAttachPreview(pendingReceipt.url);
+  }catch(e){status.textContent='Could not read image — please try again.';}
+  ev.target.value='';
+});
+function compressImage(file,MAX,CAP){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      let w=img.width,h=img.height;
+      if(Math.max(w,h)>MAX){const s=MAX/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s);}
+      const cv=document.createElement('canvas');
+      cv.width=w;cv.height=h;
+      cv.getContext('2d').drawImage(img,0,0,w,h);
+      let q=0.75,out=cv.toDataURL('image/jpeg',q);
+      while(out.length>CAP&&q>0.25){q-=0.1;out=cv.toDataURL('image/jpeg',q);}
+      resolve(out);
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('decode'));};
+    img.src=url;
+  });
+}
+function showAttachPreview(url){
+  document.getElementById('attachImg').src=url;
+  document.getElementById('attachPreview').style.display='block';
+  document.getElementById('attachZone').style.display='none';
+}
+function hideAttachPreview(){
+  document.getElementById('attachPreview').style.display='none';
+  document.getElementById('attachZone').style.display='block';
+  document.getElementById('attachStatus').textContent='';
+}
+function removeReceipt(ev){
+  ev.stopPropagation();
+  pendingReceipt=null;pendingRemoved=true;
+  hideAttachPreview();
+}
+
+/* ---------- sheet ---------- */
+function openSheet(i=null){
+  editIndex=i;pendingReceipt=null;pendingRemoved=false;
+  document.getElementById('sheetTitle').textContent=i===null?'Add Expense':'Edit Expense';
+  const e=i===null?{date:'',location:'',desc:'',purpose:'',amount:''}:state.entries[i];
+  document.getElementById('fDate').value=e.date||'';
+  document.getElementById('fLocation').value=e.location||'';
+  document.getElementById('fDesc').value=e.desc||'';
+  document.getElementById('fPurpose').value=e.purpose||'';
+  document.getElementById('fAmount').value=e.amount||'';
+  if(i!==null&&e.hasReceipt&&receipts[e.id])showAttachPreview(receipts[e.id].url);
+  else hideAttachPreview();
+  document.getElementById('overlay').classList.add('open');
+}
+function closeSheet(){document.getElementById('overlay').classList.remove('open');}
+async function saveEntry(){
+  const btn=document.getElementById('saveBtn');
+  btn.disabled=true;
+  const e={
+    id:editIndex===null?uid():state.entries[editIndex].id,
+    date:document.getElementById('fDate').value,
+    location:document.getElementById('fLocation').value.trim(),
+    desc:document.getElementById('fDesc').value.trim(),
+    purpose:document.getElementById('fPurpose').value.trim(),
+    amount:parseFloat(document.getElementById('fAmount').value)||0,
+    hasReceipt:editIndex!==null?!!state.entries[editIndex].hasReceipt:false
+  };
+  if(!e.desc&&!e.amount&&!pendingReceipt){btn.disabled=false;closeSheet();return;}
+  try{
+    if(pendingReceipt){
+      await rstore.set(e.id,pendingReceipt.blob||pendingReceipt.dataUrl);
+      receipts[e.id]=pendingReceipt;
+      e.hasReceipt=true;
+    }else if(pendingRemoved&&e.hasReceipt){
+      await rstore.del(e.id);
+      delete receipts[e.id];
+      e.hasReceipt=false;
+    }
+  }catch(err){
+    alert('Could not save the receipt image (storage may be full) — the expense item will be saved without an image.');
+  }
+  if(editIndex===null)state.entries.push(e);else state.entries[editIndex]=e;
+  state.entries.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  persist();render();
+  btn.disabled=false;
+  closeSheet();
+}
+async function delEntry(i){
+  if(!confirm('Delete this expense item?'))return;
+  const e=state.entries[i];
+  if(e.hasReceipt){await rstore.del(e.id);delete receipts[e.id];}
+  state.entries.splice(i,1);persist();render();
+}
+async function clearAll(){
+  if(!confirm('Clear all expense items? (Your name, ID and location will be kept.)'))return;
+  for(const e of state.entries){if(e.hasReceipt)await rstore.del(e.id);}
+  receipts={};state.entries=[];persist();render();
+}
+
+/* ---------- backup / restore ---------- */
+function blobToDataUrl(blob){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result);
+    r.onerror=()=>rej(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+async function exportBackup(){
+  noteMsg('Preparing backup file…');
+  const rc={};
+  for(const id in receipts){
+    rc[id]=receipts[id].blob?await blobToDataUrl(receipts[id].blob):receipts[id].dataUrl;
+  }
+  const payload={version:2,exported:new Date().toISOString(),state,receipts:rc};
+  const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  const m=state.emp.month||new Date().toISOString().slice(0,7);
+  a.download='kuka_reimbursement_'+m+'.json';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  noteMsg('✓ Backup downloaded ('+fmtKB(blob.size)+')');
+}
+document.getElementById('importFile').addEventListener('change',ev=>{
+  const file=ev.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async()=>{
+    try{
+      const p=JSON.parse(reader.result);
+      if(!p.state||!Array.isArray(p.state.entries))throw new Error('bad');
+      if(!confirm('Restore data from this file? Current data will be replaced.'))return;
+      state=p.state;receipts={};
+      state.entries.forEach(e=>{if(!e.id)e.id=uid();});
+      try{
+        await kv.set(KEY,JSON.stringify(state));
+        for(const e of state.entries){
+          const du=p.receipts&&p.receipts[e.id];
+          if(e.hasReceipt&&du){
+            if(MODE==='idb'){
+              const blob=await (await fetch(du)).blob();
+              await rstore.set(e.id,blob);
+              receipts[e.id]={blob,url:URL.createObjectURL(blob)};
+            }else{
+              await rstore.set(e.id,du);
+              receipts[e.id]={dataUrl:du,url:du};
+            }
+          }else{e.hasReceipt=false;}
+        }
+      }catch(err){alert('Not enough storage for all images — numeric data has been restored.');}
+      document.getElementById('empName').value=state.emp.name||'';
+      document.getElementById('empId').value=state.emp.id||'';
+      document.getElementById('empPosition').value=state.emp.position||'';
+      document.getElementById('mgrName').value=state.emp.mgrName||'';
+      document.getElementById('mgrPosition').value=state.emp.mgrPosition||'';
+      document.getElementById('empMonth').value=state.emp.month||'';
+      render();
+      noteMsg('✓ Data restored successfully');
+    }catch(e){alert('Invalid file — please select a .json file exported from this app.');}
+  };
+  reader.readAsText(file);
+  ev.target.value='';
+});
+
+/* ---------- viewer ---------- */
+function openViewer(id){
+  if(!receipts[id])return;
+  document.getElementById('viewerImg').src=receipts[id].url;
+  document.getElementById('viewer').classList.add('open');
+}
+function closeViewer(){document.getElementById('viewer').classList.remove('open');}
+
+/* ---------- render ---------- */
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+function fmtDateShort(d){if(!d)return'—';const p=d.split('-');return p[2]+'/'+p[1];}
+function fmtDateFull(d){if(!d)return'';const p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];}  // DD/MM/YYYY (European)
+function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function monthLabel(m){
+  if(!m)return'';
+  const p=m.split('-');return MONTHS[parseInt(p[1])-1]+' '+p[0];
+}
+function render(){
+  const list=document.getElementById('entryList');
+  list.innerHTML='';
+  document.getElementById('emptyState').style.display=state.entries.length?'none':'block';
+  state.entries.forEach((e,i)=>{
+    const div=document.createElement('div');
+    div.className='entry';
+    const thumb=e.hasReceipt&&receipts[e.id]
+      ?`<div class="entry-thumb" onclick="openViewer('${e.id}')"><img src="${receipts[e.id].url}" alt="">🧾 View receipt</div>`
+      :'';
+    div.innerHTML=`
+      <div class="entry-date">${fmtDateShort(e.date)}</div>
+      <div class="entry-body">
+        <div class="entry-desc">${esc(e.desc)||'(No description)'}</div>
+        ${e.location?`<div class="entry-purpose">📍 ${esc(e.location)}</div>`:''}
+        <div class="entry-purpose">${esc(e.purpose)}</div>
+        <div class="entry-amt">${THB(e.amount)} THB</div>
+        ${thumb}
+      </div>
+      <div class="entry-actions">
+        <button class="icon-btn" onclick="openSheet(${i})" aria-label="Edit">✎</button>
+        <button class="icon-btn" onclick="delEntry(${i})" aria-label="Delete">🗑</button>
+      </div>`;
+    list.appendChild(div);
+  });
+  const total=state.entries.reduce((s,e)=>s+(e.amount||0),0);
+  document.getElementById('totalDisplay').innerHTML=THB(total)+' <small>THB</small>';
+  buildPrint(total);
+}
+
+/* ---------- print: formal English corporate form ---------- */
+function buildPrint(total){
+  let rows='';
+  if(state.entries.length===0){
+    rows=`<tr><td colspan="7" class="c" style="color:#666;font-style:italic">No expense items recorded for this period</td></tr>`;
+  }else{
+    state.entries.forEach((e,i)=>{
+      rows+=`<tr>
+        <td class="c">${i+1}</td>
+        <td class="c">${fmtDateFull(e.date)}</td>
+        <td>${esc(e.location)}</td>
+        <td>${esc(e.desc)}</td>
+        <td>${esc(e.purpose)}</td>
+        <td class="c">${e.hasReceipt?'Yes':'No'}</td>
+        <td class="r">${THB(e.amount)}</td>
+      </tr>`;
+    });
+  }
+  let receiptPages='';
+  let rcount=0;
+  state.entries.forEach((e,i)=>{
+    if(e.hasReceipt&&receipts[e.id]){
+      rcount++;
+      receiptPages+=`
+      <div class="pp-receipt">
+        <h3>Appendix ${rcount} — Supporting Receipt for Item No. ${i+1}: ${esc(e.desc)} · ${fmtDateFull(e.date)} · THB ${THB(e.amount)}</h3>
+        <img src="${receipts[e.id].url}" alt="Receipt for item ${i+1}">
+      </div>`;
+    }
+  });
+  const today=new Date();
+  const printed=String(today.getDate()).padStart(2,'0')+'/'+String(today.getMonth()+1).padStart(2,'0')+'/'+today.getFullYear();
+  document.getElementById('printPage').innerHTML=`
+    <div class="pp-head">
+      <div>
+        <div class="pp-org">KUKA OS</div>
+        <div class="pp-title">Expense Reimbursement Form</div>
+      </div>
+      <div class="pp-sub">Reporting Period: ${monthLabel(state.emp.month)||'—'}<br>Date of Submission: ${printed}</div>
+    </div>
+    <div class="pp-line"><b>Employee Name:</b><span>${esc(state.emp.name)}</span><b style="margin-left:12px">Employee ID:</b><span style="max-width:26%">${esc(state.emp.id)}</span></div>
+    ${state.emp.position?`<div class="pp-line"><b>Position / Job Title:</b><span>${esc(state.emp.position)}</span></div>`:''}
+    <table class="pp">
+      <tr>
+        <th style="width:4%">No.</th>
+        <th style="width:10%">Date</th>
+        <th style="width:16%">Location / Site</th>
+        <th style="width:23%">Description</th>
+        <th style="width:20%">Business Purpose</th>
+        <th style="width:9%">Receipt Attached</th>
+        <th style="width:14%">Amount (THB)</th>
+      </tr>
+      ${rows}
+      <tr class="pp-total"><td colspan="6" class="c">Total Amount Claimed</td><td class="r">${THB(total)}</td></tr>
+    </table>
+    <div class="pp-decl">
+      I hereby certify that the expenses listed above were incurred by me in the course of company business,
+      that they are accurate and complete to the best of my knowledge, and that original receipts are attached
+      as supporting documentation where indicated.
+    </div>
+    <div class="pp-sign">
+      <div>
+        <div class="sig-line"></div>
+        <div class="sig-role">${esc(state.emp.name)||'Employee Signature'}</div>
+        ${state.emp.position?`<div class="sig-date">${esc(state.emp.position)}</div>`:''}
+        <div class="sig-date">Date: ............./............./..............</div>
+      </div>
+      <div>
+        <div class="sig-line"></div>
+        <div class="sig-role">${esc(state.emp.mgrName)||'Approved by (Manager)'}</div>
+        ${state.emp.mgrPosition?`<div class="sig-date">${esc(state.emp.mgrPosition)}</div>`:'<div class="sig-date">Manager</div>'}
+        <div class="sig-date">Date: ............./............./..............</div>
+      </div>
+    </div>
+    ${receiptPages}`;
+}
+init();
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+
+</script>
+</body>
+</html>
