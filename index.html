@@ -232,6 +232,7 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   <div class="card">
     <div class="field"><label>Approving Manager — Name</label><input id="mgrName" placeholder="Manager's full name"></div>
     <div class="field"><label>Approving Manager — Position</label><input id="mgrPosition" placeholder="e.g. Operations Manager"></div>
+    <div class="field"><label>Approving Manager — Email</label><input id="mgrEmail" type="email" placeholder="manager@company.com"></div>
   </div>
 
   <div class="section-label">Expense Items</div>
@@ -242,6 +243,12 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
     <button class="btn btn-primary" onclick="openSheet()">＋ Add Expense</button>
     <button class="btn btn-ghost" onclick="clearAll()">Clear All Items</button>
   </div>
+
+  <div class="section-label">Submit for Approval</div>
+  <div class="btn-row" style="margin-top:0">
+    <button class="btn btn-primary btn-sm" onclick="sendApprovalEmail()" style="grid-column:1/-1">✉️ Send for Approval</button>
+  </div>
+  <div class="attach-status" style="margin-top:6px">Opens your email app with the subject/message ready — export the PDF first (🖨 button below) and attach it manually before sending.</div>
 
   <div class="section-label">Data Backup</div>
   <div class="btn-row" style="margin-top:0">
@@ -418,7 +425,7 @@ async function load(){
   try{
     const pv=await kv.get(PKEY);
     if(pv){const p=JSON.parse(pv);
-      ['name','id','position','mgrName','mgrPosition'].forEach(k=>{if(!state.emp[k]&&p[k])state.emp[k]=p[k];});}
+      ['name','id','position','mgrName','mgrPosition','mgrEmail'].forEach(k=>{if(!state.emp[k]&&p[k])state.emp[k]=p[k];});}
   }catch(e){}
   state.entries.forEach(e=>{if(!e.id)e.id=uid();if(e.location===undefined)e.location='';});
   for(const e of state.entries){
@@ -433,6 +440,7 @@ async function load(){
   document.getElementById('empPosition').value=state.emp.position||'';
   document.getElementById('mgrName').value=state.emp.mgrName||'';
   document.getElementById('mgrPosition').value=state.emp.mgrPosition||'';
+  document.getElementById('mgrEmail').value=state.emp.mgrEmail||'';
   document.getElementById('empMonth').value=state.emp.month||'';
   render();
 }
@@ -458,12 +466,12 @@ let profTimer=null;
 function persistProfile(){
   clearTimeout(profTimer);
   profTimer=setTimeout(()=>{
-    kv.set(PKEY,JSON.stringify({name:state.emp.name,id:state.emp.id,position:state.emp.position,mgrName:state.emp.mgrName,mgrPosition:state.emp.mgrPosition})).catch(()=>{});
+    kv.set(PKEY,JSON.stringify({name:state.emp.name,id:state.emp.id,position:state.emp.position,mgrName:state.emp.mgrName,mgrPosition:state.emp.mgrPosition,mgrEmail:state.emp.mgrEmail})).catch(()=>{});
   },600);
 }
-['empName','empId','empPosition','mgrName','mgrPosition','empMonth'].forEach(id=>{
+['empName','empId','empPosition','mgrName','mgrPosition','mgrEmail','empMonth'].forEach(id=>{
   document.getElementById(id).addEventListener('input',e=>{
-    const map={empName:'name',empId:'id',empPosition:'position',mgrName:'mgrName',mgrPosition:'mgrPosition',empMonth:'month'};
+    const map={empName:'name',empId:'id',empPosition:'position',mgrName:'mgrName',mgrPosition:'mgrPosition',mgrEmail:'mgrEmail',empMonth:'month'};
     state.emp[map[id]]=e.target.value;persist();
     if(id!=='empMonth')persistProfile();
   });
@@ -642,6 +650,7 @@ document.getElementById('importFile').addEventListener('change',ev=>{
       document.getElementById('empPosition').value=state.emp.position||'';
       document.getElementById('mgrName').value=state.emp.mgrName||'';
       document.getElementById('mgrPosition').value=state.emp.mgrPosition||'';
+      document.getElementById('mgrEmail').value=state.emp.mgrEmail||'';
       document.getElementById('empMonth').value=state.emp.month||'';
       render();
       noteMsg('✓ Data restored successfully');
@@ -774,6 +783,35 @@ function buildPrint(total){
     </div>
     ${receiptPages}`;
 }
+/* ---------- email approval request ---------- */
+function sendApprovalEmail(){
+  const total=state.entries.reduce((s,e)=>s+(e.amount||0),0);
+  const withReceipt=state.entries.filter(e=>e.hasReceipt).length;
+  const period=monthLabel(state.emp.month)||'(period not set)';
+  const subject=`Reimbursement Form (KUKA OS) — ${period}`;
+  const bodyLines=[
+    `Dear ${state.emp.mgrName||'Manager'},`,
+    '',
+    `Please find below the expense reimbursement summary for ${period}, submitted for your review and approval.`,
+    '',
+    `Employee: ${state.emp.name||'—'} (${state.emp.id||'—'})`,
+    state.emp.position?`Position: ${state.emp.position}`:null,
+    `Reporting Month: ${period}`,
+    `Total Items: ${state.entries.length} (${withReceipt} with receipt attached)`,
+    `Total Amount Claimed: THB ${THB(total)}`,
+    '',
+    'A detailed PDF (including itemized expenses and receipt images) is attached to this email.',
+    '',
+    'Kindly review and approve at your convenience. Please let me know if any additional information is required.',
+    '',
+    'Best regards,',
+    state.emp.name||''
+  ].filter(l=>l!==null).join('\n');
+  const to=encodeURIComponent(state.emp.mgrEmail||'');
+  const mailto=`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyLines)}`;
+  window.location.href=mailto;
+}
+
 init();
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
