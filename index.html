@@ -96,6 +96,22 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   padding:26px 10px;border:1.5px dashed var(--line);border-radius:12px;
 }
 
+/* ===== Monthly history ===== */
+.history-row{
+  background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:11px 14px;margin-bottom:8px;display:flex;align-items:center;
+  justify-content:space-between;gap:10px;cursor:pointer;
+}
+.history-row:active{background:var(--bg)}
+.history-row.active{border-color:var(--kuka);background:#FFF6EF}
+.history-name{font-weight:600;font-size:.9rem}
+.history-meta{font-size:.75rem;color:var(--ink-2);margin-top:2px}
+.history-amt{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:.9rem;white-space:nowrap}
+.history-badge{
+  font-size:.68rem;font-weight:600;color:var(--kuka-dark);background:#FFF0E8;
+  border-radius:5px;padding:2px 6px;margin-left:6px;
+}
+
 /* ===== Buttons ===== */
 .btn{
   font-family:inherit;font-size:1rem;font-weight:600;
@@ -235,14 +251,18 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
     <div class="field"><label>Approving Manager — Email</label><input id="mgrEmail" type="email" placeholder="manager@company.com"></div>
   </div>
 
-  <div class="section-label">Expense Items</div>
+  <div class="section-label" id="entriesLabel">Expense Items</div>
   <div id="entryList"></div>
   <div class="empty" id="emptyState">No expense items yet — tap "Add Expense" to begin.</div>
 
   <div class="btn-row">
     <button class="btn btn-primary" onclick="openSheet()">＋ Add Expense</button>
-    <button class="btn btn-ghost" onclick="clearAll()">Clear All Items</button>
+    <button class="btn btn-ghost" onclick="clearAll()">Clear This Month</button>
   </div>
+
+  <div class="section-label">Monthly History</div>
+  <div id="historyList"></div>
+  <div class="empty" id="historyEmpty" style="display:none">No other months recorded yet.</div>
 
   <div class="section-label">Submit for Approval</div>
   <div class="btn-row" style="margin-top:0">
@@ -386,11 +406,28 @@ const rstore={
 
 const KEY='kuka-reimb-v1';
 const PKEY='kuka-reimb-profile';
-let state={emp:{name:'',id:'',month:''},entries:[]};
+let state={emp:{name:'',id:'',month:''},entries:[],months:{}};
 let receipts={};
 let editIndex=null;
 let pendingReceipt=null;
 let pendingRemoved=false;
+let currentMonthKey='';
+const monthKeyOf=m=>m||'_unspecified';
+function switchMonth(rawMonth){
+  const key=monthKeyOf(rawMonth);
+  if(!state.months[key])state.months[key]=[];
+  currentMonthKey=key;
+  state.entries=state.months[key];
+  state.entries.forEach(e=>{if(!e.id)e.id=uid();if(e.location===undefined)e.location='';});
+}
+async function ensureReceiptsLoaded(entries){
+  for(const e of entries){
+    if(e.hasReceipt&&!receipts[e.id]){
+      const v=await rstore.get(e.id);
+      if(v)receipts[e.id]=wrapReceipt(v);else e.hasReceipt=false;
+    }
+  }
+}
 const THB=n=>Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const fmtKB=n=>n>1048576?(n/1048576).toFixed(1)+' MB':Math.round(n/1024)+' KB';
@@ -427,7 +464,12 @@ async function load(){
     if(pv){const p=JSON.parse(pv);
       ['name','id','position','mgrName','mgrPosition','mgrEmail'].forEach(k=>{if(!state.emp[k]&&p[k])state.emp[k]=p[k];});}
   }catch(e){}
-  state.entries.forEach(e=>{if(!e.id)e.id=uid();if(e.location===undefined)e.location='';});
+  if(!state.months)state.months={};
+  // Migrate older single-month data (no archive yet) into the new per-month structure
+  if(Array.isArray(state.entries)&&state.entries.length&&Object.keys(state.months).length===0){
+    state.months[monthKeyOf(state.emp&&state.emp.month)]=state.entries;
+  }
+  switchMonth(state.emp&&state.emp.month);
   for(const e of state.entries){
     if(e.hasReceipt){
       const v=await rstore.get(e.id);
@@ -469,12 +511,18 @@ function persistProfile(){
     kv.set(PKEY,JSON.stringify({name:state.emp.name,id:state.emp.id,position:state.emp.position,mgrName:state.emp.mgrName,mgrPosition:state.emp.mgrPosition,mgrEmail:state.emp.mgrEmail})).catch(()=>{});
   },600);
 }
-['empName','empId','empPosition','mgrName','mgrPosition','mgrEmail','empMonth'].forEach(id=>{
+['empName','empId','empPosition','mgrName','mgrPosition','mgrEmail'].forEach(id=>{
   document.getElementById(id).addEventListener('input',e=>{
-    const map={empName:'name',empId:'id',empPosition:'position',mgrName:'mgrName',mgrPosition:'mgrPosition',mgrEmail:'mgrEmail',empMonth:'month'};
-    state.emp[map[id]]=e.target.value;persist();
-    if(id!=='empMonth')persistProfile();
+    const map={empName:'name',empId:'id',empPosition:'position',mgrName:'mgrName',mgrPosition:'mgrPosition',mgrEmail:'mgrEmail'};
+    state.emp[map[id]]=e.target.value;persist();persistProfile();
   });
+});
+document.getElementById('empMonth').addEventListener('input',async e=>{
+  const newRaw=e.target.value;
+  switchMonth(newRaw);
+  state.emp.month=newRaw;
+  await ensureReceiptsLoaded(state.entries);
+  persist();render();
 });
 
 /* ---------- receipt pick ---------- */
@@ -588,9 +636,10 @@ async function delEntry(i){
   state.entries.splice(i,1);persist();render();
 }
 async function clearAll(){
-  if(!confirm('Clear all expense items? (Your name, ID and location will be kept.)'))return;
-  for(const e of state.entries){if(e.hasReceipt)await rstore.del(e.id);}
-  receipts={};state.entries=[];persist();render();
+  const label=monthLabel(state.emp.month)||'this period';
+  if(!confirm(`Clear all expense items for ${label}? Other months remain archived and untouched.`))return;
+  for(const e of state.entries){if(e.hasReceipt){await rstore.del(e.id);delete receipts[e.id];}}
+  state.entries.length=0;persist();render();
 }
 
 /* ---------- backup / restore ---------- */
@@ -604,19 +653,21 @@ function blobToDataUrl(blob){
 }
 async function exportBackup(){
   noteMsg('Preparing backup file…');
+  for(const key in state.months){await ensureReceiptsLoaded(state.months[key]);}
   const rc={};
   for(const id in receipts){
     rc[id]=receipts[id].blob?await blobToDataUrl(receipts[id].blob):receipts[id].dataUrl;
   }
-  const payload={version:2,exported:new Date().toISOString(),state,receipts:rc};
+  const payload={version:3,exported:new Date().toISOString(),state,receipts:rc};
   const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  const m=state.emp.month||new Date().toISOString().slice(0,7);
-  a.download='kuka_reimbursement_'+m+'.json';
+  const stamp=new Date().toISOString().slice(0,10);
+  a.download='kuka_reimbursement_full-backup_'+stamp+'.json';
   document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),5000);
-  noteMsg('✓ Backup downloaded ('+fmtKB(blob.size)+')');
+  const monthCount=Object.keys(state.months).filter(k=>state.months[k].length>0).length;
+  noteMsg('✓ Backup downloaded — '+monthCount+' month(s) ('+fmtKB(blob.size)+')');
 }
 document.getElementById('importFile').addEventListener('change',ev=>{
   const file=ev.target.files[0];
@@ -625,26 +676,38 @@ document.getElementById('importFile').addEventListener('change',ev=>{
   reader.onload=async()=>{
     try{
       const p=JSON.parse(reader.result);
-      if(!p.state||!Array.isArray(p.state.entries))throw new Error('bad');
-      if(!confirm('Restore data from this file? Current data will be replaced.'))return;
-      state=p.state;receipts={};
-      state.entries.forEach(e=>{if(!e.id)e.id=uid();});
-      try{
-        await kv.set(KEY,JSON.stringify(state));
-        for(const e of state.entries){
+      const hasNew=p.state&&p.state.months&&typeof p.state.months==='object';
+      const hasLegacy=p.state&&Array.isArray(p.state.entries);
+      if(!hasNew&&!hasLegacy)throw new Error('bad');
+      if(!confirm('Restore data from this file? Current data (all months) will be replaced.'))return;
+      state=p.state;
+      if(!state.months)state.months={};
+      if(hasLegacy&&Object.keys(state.months).length===0){
+        state.months[monthKeyOf(state.emp&&state.emp.month)]=state.entries;
+      }
+      receipts={};
+      let missingImages=false;
+      for(const key in state.months){
+        const items=state.months[key];
+        items.forEach(e=>{if(!e.id)e.id=uid();});
+        for(const e of items){
           const du=p.receipts&&p.receipts[e.id];
           if(e.hasReceipt&&du){
-            if(MODE==='idb'){
-              const blob=await (await fetch(du)).blob();
-              await rstore.set(e.id,blob);
-              receipts[e.id]={blob,url:URL.createObjectURL(blob)};
-            }else{
-              await rstore.set(e.id,du);
-              receipts[e.id]={dataUrl:du,url:du};
-            }
+            try{
+              if(MODE==='idb'){
+                const blob=await (await fetch(du)).blob();
+                await rstore.set(e.id,blob);
+                receipts[e.id]={blob,url:URL.createObjectURL(blob)};
+              }else{
+                await rstore.set(e.id,du);
+                receipts[e.id]={dataUrl:du,url:du};
+              }
+            }catch(err){missingImages=true;e.hasReceipt=false;}
           }else{e.hasReceipt=false;}
         }
-      }catch(err){alert('Not enough storage for all images — numeric data has been restored.');}
+      }
+      try{await kv.set(KEY,JSON.stringify(state));}catch(err){}
+      switchMonth(state.emp&&state.emp.month);
       document.getElementById('empName').value=state.emp.name||'';
       document.getElementById('empId').value=state.emp.id||'';
       document.getElementById('empPosition').value=state.emp.position||'';
@@ -653,7 +716,7 @@ document.getElementById('importFile').addEventListener('change',ev=>{
       document.getElementById('mgrEmail').value=state.emp.mgrEmail||'';
       document.getElementById('empMonth').value=state.emp.month||'';
       render();
-      noteMsg('✓ Data restored successfully');
+      noteMsg(missingImages?'✓ Restored (some images skipped — storage full)':'✓ Data restored successfully');
     }catch(e){alert('Invalid file — please select a .json file exported from this app.');}
   };
   reader.readAsText(file);
@@ -704,7 +767,40 @@ function render(){
   });
   const total=state.entries.reduce((s,e)=>s+(e.amount||0),0);
   document.getElementById('totalDisplay').innerHTML=THB(total)+' <small>THB</small>';
+  document.getElementById('entriesLabel').textContent='Expense Items'+(monthLabel(state.emp.month)?' — '+monthLabel(state.emp.month):'');
   buildPrint(total);
+  renderHistory();
+}
+function renderHistory(){
+  const wrap=document.getElementById('historyList');
+  const keys=Object.keys(state.months).filter(k=>k!==currentMonthKey&&state.months[k].length>0);
+  document.getElementById('historyEmpty').style.display=keys.length?'none':'block';
+  keys.sort().reverse();
+  wrap.innerHTML='';
+  keys.forEach(k=>{
+    const items=state.months[k];
+    const total=items.reduce((s,e)=>s+(e.amount||0),0);
+    const label=k==='_unspecified'?'(No month set)':(monthLabel(k)||k);
+    const div=document.createElement('div');
+    div.className='history-row';
+    div.onclick=()=>jumpToMonth(k);
+    div.innerHTML=`
+      <div>
+        <div class="history-name">${esc(label)}</div>
+        <div class="history-meta">${items.length} item${items.length!==1?'s':''}</div>
+      </div>
+      <div class="history-amt">${THB(total)} THB</div>`;
+    wrap.appendChild(div);
+  });
+}
+async function jumpToMonth(key){
+  if(key===currentMonthKey)return;
+  const rawValue=key==='_unspecified'?'':key;
+  document.getElementById('empMonth').value=rawValue;
+  switchMonth(rawValue);
+  state.emp.month=rawValue;
+  await ensureReceiptsLoaded(state.entries);
+  persist();render();
 }
 
 /* ---------- print: formal English corporate form ---------- */
