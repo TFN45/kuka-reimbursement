@@ -112,6 +112,28 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   border-radius:5px;padding:2px 6px;margin-left:6px;
 }
 
+/* ===== Spending summary ===== */
+.summary-card{text-align:center}
+.summary-grand-label{font-size:.72rem;font-weight:600;letter-spacing:.08em;color:var(--ink-2);text-transform:uppercase}
+.summary-grand-value{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:1.9rem;color:var(--ink);margin-top:4px}
+.summary-grand-value small{font-size:.9rem;font-weight:500;color:var(--ink-2)}
+.summary-grand-sub{font-size:.78rem;color:var(--ink-2);margin-top:2px}
+.summary-divider{height:1px;background:var(--line);margin:14px 0}
+.summary-modal-label{font-size:.72rem;font-weight:600;letter-spacing:.08em;color:var(--ink-2);text-transform:uppercase;text-align:center}
+.summary-modal-value{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:2.1rem;color:var(--ink);text-align:center;margin-top:4px}
+.summary-modal-value small{font-size:.95rem;font-weight:500;color:var(--ink-2)}
+.summary-modal-meta{font-size:.8rem;color:var(--ink-2);text-align:center;margin-top:4px}
+.summary-section-title{font-size:.72rem;font-weight:600;letter-spacing:.08em;color:var(--ink-2);text-transform:uppercase;margin:14px 0 8px}
+.summary-row{margin-bottom:14px}
+.summary-row-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+.summary-row-name{font-weight:600;font-size:.9rem}
+.summary-row-name .cur-tag{font-size:.65rem;font-weight:600;color:var(--kuka-dark);background:#FFF0E8;border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+.summary-row-meta{font-size:.75rem;color:var(--ink-2)}
+.summary-row-amt{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:.9rem;white-space:nowrap}
+.summary-bar-track{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+.summary-bar-fill{height:100%;background:var(--kuka);border-radius:4px 0 0 4px;transition:width .3s ease}
+.summary-row.current .summary-bar-fill{background:var(--kuka-dark)}
+
 /* ===== Buttons ===== */
 .btn{
   font-family:inherit;font-size:1rem;font-weight:600;
@@ -251,6 +273,14 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
     <div class="field"><label>Approving Manager — Email</label><input id="mgrEmail" type="email" placeholder="manager@company.com"></div>
   </div>
 
+  <div class="section-label">Spending Summary</div>
+  <div class="card summary-card">
+    <div class="summary-grand-label">Grand Total — All Months</div>
+    <div class="summary-grand-value" id="grandTotalDisplay">0.00 <small>THB</small></div>
+    <div class="summary-grand-sub" id="grandTotalSub"></div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="openSummary()">📊 View Monthly Breakdown</button>
+  </div>
+
   <div class="section-label" id="entriesLabel">Expense Items</div>
   <div id="entryList"></div>
   <div class="empty" id="emptyState">No expense items yet — tap "Add Expense" to begin.</div>
@@ -323,6 +353,16 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
 <div class="viewer" id="viewer" onclick="closeViewer()">
   <img id="viewerImg" alt="Receipt">
   <button onclick="closeViewer()">Close</button>
+</div>
+
+<!-- Spending summary modal -->
+<div class="overlay" id="summaryOverlay">
+  <div class="sheet" style="max-height:88vh">
+    <h2><span>Spending Summary</span><button onclick="closeSummary()" aria-label="Close">✕</button></h2>
+    <div id="summaryModalGrand"></div>
+    <div class="summary-divider"></div>
+    <div id="summaryBreakdown"></div>
+  </div>
 </div>
 
 <!-- Print layout -->
@@ -770,6 +810,25 @@ function render(){
   document.getElementById('entriesLabel').textContent='Expense Items'+(monthLabel(state.emp.month)?' — '+monthLabel(state.emp.month):'');
   buildPrint(total);
   renderHistory();
+  renderGrandTotal();
+}
+function monthStats(){
+  const keys=Object.keys(state.months).filter(k=>state.months[k].length>0);
+  const rows=keys.map(k=>{
+    const items=state.months[k];
+    return{key:k,label:k==='_unspecified'?'No month set':(monthLabel(k)||k),
+      count:items.length,total:items.reduce((s,e)=>s+(e.amount||0),0)};
+  });
+  rows.sort((a,b)=>b.key.localeCompare(a.key));
+  const grandTotal=rows.reduce((s,r)=>s+r.total,0);
+  const grandCount=rows.reduce((s,r)=>s+r.count,0);
+  return{rows,grandTotal,grandCount};
+}
+function renderGrandTotal(){
+  const{rows,grandTotal}=monthStats();
+  document.getElementById('grandTotalDisplay').innerHTML=THB(grandTotal)+' <small>THB</small>';
+  document.getElementById('grandTotalSub').textContent=
+    rows.length?`Across ${rows.length} month${rows.length!==1?'s':''}`:'No expenses recorded yet';
 }
 function renderHistory(){
   const wrap=document.getElementById('historyList');
@@ -802,6 +861,37 @@ async function jumpToMonth(key){
   await ensureReceiptsLoaded(state.entries);
   persist();render();
 }
+
+/* ---------- spending summary modal ---------- */
+function openSummary(){
+  const{rows,grandTotal,grandCount}=monthStats();
+  const avg=rows.length?grandTotal/rows.length:0;
+  document.getElementById('summaryModalGrand').innerHTML=`
+    <div class="summary-modal-label">Grand Total — All Months</div>
+    <div class="summary-modal-value">${THB(grandTotal)} <small>THB</small></div>
+    <div class="summary-modal-meta">${grandCount} item${grandCount!==1?'s':''} across ${rows.length} month${rows.length!==1?'s':''} · Avg ${THB(avg)} THB / month</div>`;
+  const maxTotal=Math.max(1,...rows.map(r=>r.total));
+  const bd=document.getElementById('summaryBreakdown');
+  if(rows.length===0){
+    bd.innerHTML='<div class="empty">No expenses recorded yet.</div>';
+  }else{
+    bd.innerHTML='<div class="summary-section-title">Monthly Breakdown</div>'+rows.map(r=>{
+      const pct=Math.max(3,Math.round(r.total/maxTotal*100));
+      const isCurrent=r.key===currentMonthKey;
+      return`
+      <div class="summary-row${isCurrent?' current':''}">
+        <div class="summary-row-head">
+          <div class="summary-row-name">${esc(r.label)}${isCurrent?'<span class="cur-tag">Current</span>':''}</div>
+          <div class="summary-row-amt">${THB(r.total)} THB</div>
+        </div>
+        <div class="summary-bar-track"><div class="summary-bar-fill" style="width:${pct}%"></div></div>
+        <div class="summary-row-meta">${r.count} item${r.count!==1?'s':''}</div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('summaryOverlay').classList.add('open');
+}
+function closeSummary(){document.getElementById('summaryOverlay').classList.remove('open');}
 
 /* ---------- print: formal English corporate form ---------- */
 function buildPrint(total){
