@@ -637,6 +637,19 @@ function openSheet(i=null){
   document.getElementById('overlay').classList.add('open');
 }
 function closeSheet(){document.getElementById('overlay').classList.remove('open');}
+function duplicateEntry(i){
+  const src=state.entries[i];
+  editIndex=null;pendingReceipt=null;pendingRemoved=false;
+  document.getElementById('sheetTitle').textContent='Add Expense (Duplicated)';
+  const todayIso=new Date().toISOString().slice(0,10);
+  document.getElementById('fDate').value=todayIso;
+  document.getElementById('fLocation').value=src.location||'';
+  document.getElementById('fDesc').value=src.desc||'';
+  document.getElementById('fPurpose').value=src.purpose||'';
+  document.getElementById('fAmount').value=src.amount||'';
+  hideAttachPreview();
+  document.getElementById('overlay').classList.add('open');
+}
 async function saveEntry(){
   const btn=document.getElementById('saveBtn');
   btn.disabled=true;
@@ -801,6 +814,7 @@ function render(){
       </div>
       <div class="entry-actions">
         <button class="icon-btn" onclick="openSheet(${i})" aria-label="Edit">✎</button>
+        <button class="icon-btn" onclick="duplicateEntry(${i})" aria-label="Duplicate">⧉</button>
         <button class="icon-btn" onclick="delEntry(${i})" aria-label="Delete">🗑</button>
       </div>`;
     list.appendChild(div);
