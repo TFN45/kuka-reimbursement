@@ -106,6 +106,28 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   display:flex;align-items:center;justify-content:center;line-height:1;
 }
 .chip-row.manage-mode .chip:not(.add):not(.other){padding-right:12px}
+
+/* ===== Inline preset editor (Manage mode for company presets) ===== */
+.preset-editor{margin-bottom:8px}
+.preset-editor-row{
+  display:flex;gap:6px;align-items:center;margin-bottom:6px;
+}
+.preset-editor-row input.name{
+  flex:1;min-width:0;font-family:inherit;font-size:.85rem;
+  padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#FAFAF8;
+}
+.preset-editor-row input.abbr{
+  width:64px;flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-size:.8rem;
+  text-align:center;text-transform:uppercase;padding:9px 4px;
+  border:1px solid var(--line);border-radius:8px;background:#FAFAF8;
+}
+.preset-editor-row input:focus{outline:2px solid var(--kuka);outline-offset:-1px;background:#fff}
+.preset-editor-row .del-btn,.preset-editor-row .add-btn{
+  flex-shrink:0;width:34px;height:34px;border-radius:8px;border:1px solid var(--line);
+  background:#fff;font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+.preset-editor-row .add-btn{color:var(--kuka-dark);border-color:#FFC199;background:#FFF6EF;font-weight:700}
+.preset-editor-row.new-row{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
 .field input{
   width:100%;font-family:inherit;font-size:1rem;
   padding:11px 12px;border:1px solid var(--line);
@@ -544,6 +566,20 @@ const fmtKB=n=>n>1048576?(n/1048576).toFixed(1)+' MB':Math.round(n/1024)+' KB';
 
 /* ---------- Thailand provinces (fixed, searchable dropdown) ---------- */
 const THAI_PROVINCES=['Amnat Charoen','Ang Thong','Bangkok','Bueng Kan','Buriram','Chachoengsao','Chai Nat','Chaiyaphum','Chanthaburi','Chiang Mai','Chiang Rai','Chonburi','Chumphon','Kalasin','Kamphaeng Phet','Kanchanaburi','Khon Kaen','Krabi','Lampang','Lamphun','Loei','Lopburi','Mae Hong Son','Maha Sarakham','Mukdahan','Nakhon Nayok','Nakhon Pathom','Nakhon Phanom','Nakhon Ratchasima','Nakhon Sawan','Nakhon Si Thammarat','Nan','Narathiwat','Nong Bua Lamphu','Nong Khai','Nonthaburi','Pathum Thani','Pattani','Phang Nga','Phatthalung','Phayao','Phetchabun','Phetchaburi','Phichit','Phitsanulok','Phra Nakhon Si Ayutthaya','Phrae','Phuket','Prachinburi','Prachuap Khiri Khan','Ranong','Ratchaburi','Rayong','Roi Et','Sa Kaeo','Sakon Nakhon','Samut Prakan','Samut Sakhon','Samut Songkhram','Saraburi','Satun','Sing Buri','Sisaket','Songkhla','Sukhothai','Suphan Buri','Surat Thani','Surin','Tak','Trang','Trat','Ubon Ratchathani','Udon Thani','Uthai Thani','Uttaradit','Yala','Yasothon'];
+// Short codes for compact tag display (app-generated convenience labels, not an official standard — editable indirectly by choosing full province names in exports)
+const PROVINCE_ABBR={'Amnat Charoen':'ACH','Ang Thong':'ATH','Bangkok':'BKK','Bueng Kan':'BKA','Buriram':'BFV','Chachoengsao':'CHAC','Chai Nat':'CNA','Chaiyaphum':'CHAI','Chanthaburi':'CHAN','Chiang Mai':'CNX','Chiang Rai':'CEI','Chonburi':'CHON','Chumphon':'CJM','Kalasin':'KALA','Kamphaeng Phet':'KPH','Kanchanaburi':'KANC','Khon Kaen':'KKC','Krabi':'KBV','Lampang':'LPG','Lamphun':'LPN','Loei':'LOE','Lopburi':'LOPB','Mae Hong Son':'HGN','Maha Sarakham':'MSA','Mukdahan':'MUKD','Nakhon Nayok':'NNA','Nakhon Pathom':'NPA','Nakhon Phanom':'NPH','Nakhon Ratchasima':'NMA','Nakhon Sawan':'NSA','Nakhon Si Thammarat':'NST','Nan':'NNT','Narathiwat':'NAW','Nong Bua Lamphu':'NBL','Nong Khai':'NKH','Nonthaburi':'NONT','Pathum Thani':'PTH','Pattani':'PAN','Phang Nga':'PNG','Phatthalung':'PHAT','Phayao':'PHAY','Phetchabun':'PCB','Phetchaburi':'PBI','Phichit':'PHIC','Phitsanulok':'PHS','Phra Nakhon Si Ayutthaya':'PNSA','Phrae':'PRH','Phuket':'HKT','Prachinburi':'PRAC','Prachuap Khiri Khan':'PKK','Ranong':'UNN','Ratchaburi':'RATC','Rayong':'UTP','Roi Et':'ROI','Sa Kaeo':'SKA','Sakon Nakhon':'SNO','Samut Prakan':'SPR','Samut Sakhon':'SSA','Samut Songkhram':'SSO','Saraburi':'SARA','Satun':'SATU','Sing Buri':'SIB','Sisaket':'SISA','Songkhla':'HDY','Sukhothai':'SUKH','Suphan Buri':'SPB','Surat Thani':'URT','Surin':'SURI','Tak':'TAK','Trang':'TST','Trat':'TDX','Ubon Ratchathani':'UBP','Udon Thani':'UDN','Uthai Thani':'UTH','Uttaradit':'UTTA','Yala':'YALA','Yasothon':'YASO'};
+function autoAbbrev(name){
+  const words=(name||'').trim().split(/\s+/).filter(Boolean);
+  if(words.length===0)return'';
+  if(words.length===1)return words[0].slice(0,4).toUpperCase();
+  let abbr=words.map(w=>w[0]).join('').toUpperCase();
+  let i=1;
+  while(abbr.length<3&&i<words[words.length-1].length){
+    abbr+=words[words.length-1][i].toUpperCase();
+    i++;
+  }
+  return abbr.slice(0,4);
+}
 function filterProvinces(){
   const val=document.getElementById('fProvince').value.trim().toLowerCase();
   const list=document.getElementById('provinceList');
@@ -558,6 +594,7 @@ function filterProvinces(){
 function selectProvince(p){
   document.getElementById('fProvince').value=p;
   document.getElementById('provinceList').classList.remove('open');
+  renderLocationTags();
 }
 document.addEventListener('click',ev=>{
   if(!ev.target.closest('.province-wrap')){
@@ -605,6 +642,8 @@ async function load(){
     state.emp.descPresets=['Fuel Expenses','Toll Fees','Parking Fees','Vehicle Maintenance & Service','Public Transportation / Taxi Fare'];
   }
   if(!Array.isArray(state.emp.locPresets))state.emp.locPresets=[];
+  // Migrate legacy plain-string company presets into {name, abbr} objects
+  state.emp.locPresets=state.emp.locPresets.map(p=>typeof p==='string'?{name:p,abbr:autoAbbrev(p)}:p);
   if(!state.months)state.months={};
   // Migrate older single-month data (no archive yet) into the new per-month structure
   if(Array.isArray(state.entries)&&state.entries.length&&Object.keys(state.months).length===0){
@@ -731,8 +770,8 @@ function openSheet(i=null){
   document.getElementById('fDate').value=e.date||'';
   currentLocationTags=Array.isArray(e.locations)?e.locations.slice():(e.location?[e.location]:[]);
   document.getElementById('fLocationOther').value='';
-  renderLocationTags();
   document.getElementById('fProvince').value=e.province||'';
+  renderLocationTags();
   document.getElementById('fDesc').value=e.desc||'';
   document.getElementById('fPurpose').value=e.purpose||'';
   document.getElementById('fAmount').value=e.amount||'';
@@ -752,8 +791,8 @@ function duplicateEntry(i){
   document.getElementById('fDate').value=todayIso;
   currentLocationTags=Array.isArray(src.locations)?src.locations.slice():(src.location?[src.location]:[]);
   document.getElementById('fLocationOther').value='';
-  renderLocationTags();
   document.getElementById('fProvince').value=src.province||'';
+  renderLocationTags();
   document.getElementById('fDesc').value=src.desc||'';
   document.getElementById('fPurpose').value=src.purpose||'';
   document.getElementById('fAmount').value=src.amount||'';
@@ -772,19 +811,70 @@ function chipConfig(type){
     ?{presets:state.emp.descPresets,mode:'single',inputId:'fDesc',otherInputId:'fDesc',rowId:'descChips',linkId:'descManageLink'}
     :{presets:state.emp.locPresets,mode:'multi',inputId:null,otherInputId:'fLocationOther',rowId:'locChips',linkId:'locManageLink'};
 }
+function presetLabel(type,p){return type==='loc'?p.name:p;}
+function escAttr(s){return esc(s).replace(/`/g,'&#96;');}
 function renderChips(type){
   const cfg=chipConfig(type);
   const row=document.getElementById(cfg.rowId);
   const mode=manageMode[type];
-  row.className='chip-row'+(mode?' manage-mode':'');
   document.getElementById(cfg.linkId).textContent=mode?'Done':'✎ Manage';
+
+  if(type==='loc'&&mode){
+    // Mobile-friendly inline editor: edit Name + Abbreviation directly, no popups
+    row.className='preset-editor';
+    let html='';
+    cfg.presets.forEach((p,idx)=>{
+      html+=`<div class="preset-editor-row">
+        <input class="name" value="${escAttr(p.name)}" oninput="updatePresetField('loc',${idx},'name',this.value)" placeholder="Company name">
+        <input class="abbr" value="${escAttr(p.abbr)}" maxlength="6" oninput="updatePresetField('loc',${idx},'abbr',this.value.toUpperCase())" placeholder="ABBR">
+        <button type="button" class="del-btn" onclick="removePreset('loc',${idx})" aria-label="Delete">🗑</button>
+      </div>`;
+    });
+    html+=`<div class="preset-editor-row new-row">
+      <input class="name" id="newLocName" placeholder="New company name" oninput="autofillNewAbbr()" onkeydown="if(event.key==='Enter'){event.preventDefault();addPresetInline('loc');}">
+      <input class="abbr" id="newLocAbbr" maxlength="6" placeholder="ABBR" oninput="this.dataset.touched='1';this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter'){event.preventDefault();addPresetInline('loc');}">
+      <button type="button" class="add-btn" onclick="addPresetInline('loc')" aria-label="Add">＋</button>
+    </div>`;
+    row.innerHTML=html;
+    return;
+  }
+
+  row.className='chip-row'+(mode?' manage-mode':'');
   let html='';
   cfg.presets.forEach((p,idx)=>{
-    html+=`<button type="button" class="chip" onclick="${mode?`removePreset('${type}',${idx})`:`selectChip('${type}',${idx})`}">${esc(p)}${mode?'<span class="chip-x">✕</span>':''}</button>`;
+    html+=`<button type="button" class="chip" onclick="${mode?`removePreset('${type}',${idx})`:`selectChip('${type}',${idx})`}">${esc(presetLabel(type,p))}${mode?'<span class="chip-x">✕</span>':''}</button>`;
   });
   html+=`<button type="button" class="chip add" onclick="addPreset('${type}')">＋ Add</button>`;
   if(!mode)html+=`<button type="button" class="chip other" onclick="otherChip('${type}')">Other</button>`;
   row.innerHTML=html;
+}
+function autofillNewAbbr(){
+  const nameEl=document.getElementById('newLocName');
+  const abbrEl=document.getElementById('newLocAbbr');
+  if(!abbrEl.dataset.touched)abbrEl.value=autoAbbrev(nameEl.value);
+}
+function updatePresetField(type,idx,field,value){
+  const cfg=chipConfig(type);
+  if(!cfg.presets[idx])return;
+  cfg.presets[idx][field]=value;
+  persistProfile();
+  // Live-refresh any tags already on screen so edits reflect immediately without losing focus
+  renderLocationTags();
+}
+function addPresetInline(type){
+  const nameEl=document.getElementById('newLocName');
+  const abbrEl=document.getElementById('newLocAbbr');
+  const name=nameEl.value.trim();
+  if(!name){nameEl.focus();return;}
+  const cfg=chipConfig(type);
+  if(cfg.presets.some(p=>p.name.toLowerCase()===name.toLowerCase())){
+    alert(`"${name}" is already in your quick-select list.`);
+    return;
+  }
+  const abbr=(abbrEl.value.trim()||autoAbbrev(name)).toUpperCase();
+  cfg.presets.push({name,abbr});
+  persistProfile();
+  renderChips(type);
 }
 function toggleManage(type){
   manageMode[type]=!manageMode[type];
@@ -793,7 +883,7 @@ function toggleManage(type){
 function selectChip(type,idx){
   const cfg=chipConfig(type);
   if(cfg.mode==='multi'){
-    addLocationTag(cfg.presets[idx]);
+    addLocationTag(cfg.presets[idx].name);
   }else{
     document.getElementById(cfg.inputId).value=cfg.presets[idx];
   }
@@ -804,22 +894,35 @@ function otherChip(type){
   input.value='';input.focus();
 }
 function addPreset(type){
-  const label=type==='desc'?'description':'company name';
-  const val=(prompt(`Add a new ${label} preset:`)||'').trim();
-  if(!val)return;
-  const cfg=chipConfig(type);
-  if(cfg.presets.some(p=>p.toLowerCase()===val.toLowerCase())){
-    if(type==='desc')document.getElementById(cfg.inputId).value=val;else addLocationTag(val);
+  if(type==='desc'){
+    const val=(prompt('Add a new description preset:')||'').trim();
+    if(!val)return;
+    const cfg=chipConfig(type);
+    if(cfg.presets.some(p=>p.toLowerCase()===val.toLowerCase())){
+      document.getElementById(cfg.inputId).value=val;
+      return;
+    }
+    cfg.presets.push(val);
+    persistProfile();
+    renderChips(type);
+    document.getElementById(cfg.inputId).value=val;
     return;
   }
-  cfg.presets.push(val);
-  persistProfile();
-  renderChips(type);
-  if(type==='desc')document.getElementById(cfg.inputId).value=val;else addLocationTag(val);
+  // Company preset — quick add with one prompt; fine-tune the abbreviation anytime via ✎ Manage
+  const name=(prompt('Add a new company name:')||'').trim();
+  if(!name)return;
+  const cfg=chipConfig(type);
+  if(!cfg.presets.some(p=>p.name.toLowerCase()===name.toLowerCase())){
+    cfg.presets.push({name,abbr:autoAbbrev(name)});
+    persistProfile();
+    renderChips(type);
+  }
+  addLocationTag(name);
 }
 function removePreset(type,idx){
   const cfg=chipConfig(type);
-  if(!confirm(`Remove "${cfg.presets[idx]}" from quick-select? This will not affect any saved expense items.`))return;
+  const label=presetLabel(type,cfg.presets[idx]);
+  if(!confirm(`Remove "${label}" from quick-select? This will not affect any saved expense items.`))return;
   cfg.presets.splice(idx,1);
   persistProfile();
   renderChips(type);
@@ -832,9 +935,14 @@ function renderLocationTags(){
     wrap.innerHTML='<div class="tag-empty">No company selected yet — pick a chip below or type one</div>';
     return;
   }
-  wrap.innerHTML=currentLocationTags.map((t,idx)=>
-    `<span class="tag-pill">${esc(t)}<span class="tag-remove" onclick="removeLocationTag(${idx})">✕</span></span>`
-  ).join('');
+  const provinceVal=document.getElementById('fProvince').value.trim();
+  const provinceAbbr=PROVINCE_ABBR[provinceVal]||'';
+  wrap.innerHTML=currentLocationTags.map((t,idx)=>{
+    const preset=state.emp.locPresets.find(p=>p.name.toLowerCase()===t.toLowerCase());
+    const shortName=preset?preset.abbr:t;
+    const display=shortName+(provinceAbbr?`(${provinceAbbr})`:'');
+    return `<span class="tag-pill" title="${esc(t)}${provinceVal?', '+esc(provinceVal):''}">${esc(display)}<span class="tag-remove" onclick="removeLocationTag(${idx})">✕</span></span>`;
+  }).join('');
 }
 function addLocationTag(val){
   const v=(typeof val==='string'?val:document.getElementById('fLocationOther').value).trim();
