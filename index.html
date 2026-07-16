@@ -73,14 +73,10 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   border-radius:50%;width:16px;height:16px;display:flex;
   align-items:center;justify-content:center;flex-shrink:0;
 }
-.inline-add-row{display:flex;gap:8px;margin-top:2px}
-.inline-add-row input{flex:1}
-.btn-inline-add{
-  background:#fff;border:1px solid var(--line);border-radius:8px;
-  padding:0 16px;font-family:inherit;font-weight:600;font-size:.85rem;
-  color:var(--kuka-dark);cursor:pointer;
-}
-.btn-inline-add:active{background:var(--bg)}
+.pair-builder{display:flex;gap:8px;margin-top:2px}
+.pair-builder input{flex:1;min-width:0}
+.pair-builder .province-wrap{flex:1;min-width:0}
+.pair-hint{font-size:.72rem;color:var(--ink-2);margin-top:6px;line-height:1.4}
 .province-wrap{position:relative}
 .province-list{
   position:absolute;top:calc(100% + 4px);left:0;right:0;
@@ -423,20 +419,17 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
     <h2><span id="sheetTitle">Add Expense</span><button onclick="closeSheet()" aria-label="Close">✕</button></h2>
     <div class="field"><label>Date <span class="required-mark">*</span></label><input id="fDate" type="date"></div>
     <div class="field">
-      <label>Customer / Company Name (select all that apply) <span class="required-mark">*</span> <span class="manage-link" onclick="toggleManage('loc')" id="locManageLink">✎ Manage</span></label>
+      <label>Customer / Company + Province <span class="required-mark">*</span> <span class="manage-link" onclick="toggleManage('loc')" id="locManageLink">✎ Manage</span></label>
       <div class="tag-row" id="locTags"></div>
       <div class="chip-row" id="locChips"></div>
-      <div class="inline-add-row">
-        <input id="fLocationOther" placeholder="Type another company name...">
-        <button type="button" class="btn-inline-add" onclick="addLocationTag()">Add</button>
+      <div class="pair-builder">
+        <input id="fLocationOther" placeholder="Company name (or tap a chip above)">
+        <div class="province-wrap">
+          <input id="fProvince" placeholder="Then search & tap its province…" autocomplete="off" oninput="filterProvinces()" onfocus="filterProvinces()">
+          <div class="province-list" id="provinceList"></div>
+        </div>
       </div>
-    </div>
-    <div class="field">
-      <label>Province <span class="required-mark">*</span></label>
-      <div class="province-wrap">
-        <input id="fProvince" placeholder="Search province..." autocomplete="off" oninput="filterProvinces()" onfocus="filterProvinces()">
-        <div class="province-list" id="provinceList"></div>
-      </div>
+      <div class="pair-hint">Tip: pick or type a company name first, then tap its province in the list — it's added automatically as one pair. Add as many company + province pairs as you visited that day.</div>
     </div>
     <div class="field">
       <label>Description <span class="manage-link" onclick="toggleManage('desc')" id="descManageLink">✎ Manage</span></label>
@@ -646,7 +639,14 @@ function filterProvinces(){
 function selectProvince(p){
   document.getElementById('fProvince').value=p;
   document.getElementById('provinceList').classList.remove('open');
-  renderLocationTags();
+  const nameEl=document.getElementById('fLocationOther');
+  const name=nameEl.value.trim();
+  if(!name){
+    alert('Please enter or select a company name first, then choose its province.');
+    nameEl.focus();
+    return;
+  }
+  finalizeLocationPair(name,p);
 }
 document.addEventListener('click',ev=>{
   if(!ev.target.closest('.province-wrap')){
@@ -819,11 +819,11 @@ function removeReceipt(ev){
 function openSheet(i=null){
   editIndex=i;pendingReceipt=null;pendingRemoved=false;
   document.getElementById('sheetTitle').textContent=i===null?'Add Expense':'Edit Expense';
-  const e=i===null?{date:'',locations:[],province:'',desc:'',purpose:'',amount:''}:state.entries[i];
+  const e=i===null?{date:'',companies:[],desc:'',purpose:'',amount:''}:state.entries[i];
   document.getElementById('fDate').value=e.date||'';
-  currentLocationTags=Array.isArray(e.locations)?e.locations.slice():(e.location?[e.location]:[]);
+  currentLocationTags=companyProvincePairs(e);
   document.getElementById('fLocationOther').value='';
-  document.getElementById('fProvince').value=e.province||'';
+  document.getElementById('fProvince').value='';
   renderLocationTags();
   document.getElementById('fDesc').value=e.desc||'';
   document.getElementById('fPurpose').value=e.purpose||'';
@@ -842,9 +842,9 @@ function duplicateEntry(i){
   document.getElementById('sheetTitle').textContent='Add Expense (Duplicated)';
   const todayIso=new Date().toISOString().slice(0,10);
   document.getElementById('fDate').value=todayIso;
-  currentLocationTags=Array.isArray(src.locations)?src.locations.slice():(src.location?[src.location]:[]);
+  currentLocationTags=companyProvincePairs(src);
   document.getElementById('fLocationOther').value='';
-  document.getElementById('fProvince').value=src.province||'';
+  document.getElementById('fProvince').value='';
   renderLocationTags();
   document.getElementById('fDesc').value=src.desc||'';
   document.getElementById('fPurpose').value=src.purpose||'';
@@ -948,7 +948,7 @@ function selectChip(type,idx){
     const p=cfg.presets[idx];
     const name=typeof p==='string'?p:(p&&p.name)||'';
     if(name){
-      addLocationTag(name);
+      stageCompanyName(name);
     }else{
       console.warn('selectChip: preset had no usable name',p);
       alert('This quick-select button seems to be missing data. Please remove it via ✎ Manage and add it again.');
@@ -986,7 +986,7 @@ function addPreset(type){
     persistProfile();
     renderChips(type);
   }
-  addLocationTag(name);
+  stageCompanyName(name);
 }
 function removePreset(type,idx){
   const cfg=chipConfig(type);
@@ -997,30 +997,37 @@ function removePreset(type,idx){
   renderChips(type);
 }
 
-/* ---------- multi-select company tags (a day can involve several customers) ---------- */
+/* ---------- company + province pairs (each company keeps its own province) ---------- */
 function renderLocationTags(){
   const wrap=document.getElementById('locTags');
   if(currentLocationTags.length===0){
-    wrap.innerHTML='<div class="tag-empty">No company selected yet — pick a chip below or type one</div>';
+    wrap.innerHTML='<div class="tag-empty">No company added yet — pick a chip or type a name, then tap its province</div>';
     return;
   }
-  const provinceVal=document.getElementById('fProvince').value.trim();
-  const provinceAbbr=PROVINCE_ABBR[provinceVal]||'';
   wrap.innerHTML=currentLocationTags.map((t,idx)=>{
-    const preset=state.emp.locPresets.find(p=>p.name.toLowerCase()===t.toLowerCase());
-    const shortName=preset?preset.abbr:t;
+    const preset=state.emp.locPresets.find(p=>p.name.toLowerCase()===t.name.toLowerCase());
+    const shortName=preset?preset.abbr:t.name;
+    const provinceAbbr=PROVINCE_ABBR[t.province]||'';
     const display=shortName+(provinceAbbr?`(${provinceAbbr})`:'');
-    return `<span class="tag-pill" title="${esc(t)}${provinceVal?', '+esc(provinceVal):''}">${esc(display)}<span class="tag-remove" onclick="removeLocationTag(${idx})">✕</span></span>`;
+    return `<span class="tag-pill" title="${esc(t.name)}${t.province?', '+esc(t.province):''}">${esc(display)}<span class="tag-remove" onclick="removeLocationTag(${idx})">✕</span></span>`;
   }).join('');
 }
-function addLocationTag(val){
-  const v=(typeof val==='string'?val:document.getElementById('fLocationOther').value).trim();
-  if(!v){return;}
-  if(!currentLocationTags.some(t=>t.toLowerCase()===v.toLowerCase())){
-    currentLocationTags.push(v);
+function stageCompanyName(name){
+  document.getElementById('fLocationOther').value=name;
+  document.getElementById('fProvince').value='';
+  document.getElementById('fProvince').focus();
+  filterProvinces();
+}
+function finalizeLocationPair(name,province){
+  const dup=currentLocationTags.some(t=>t.name.toLowerCase()===name.toLowerCase()&&t.province===province);
+  if(dup){
+    alert(`"${name} — ${province}" is already added.`);
+  }else{
+    currentLocationTags.push({name,province});
     renderLocationTags();
   }
   document.getElementById('fLocationOther').value='';
+  document.getElementById('fProvince').value='';
   const wrap=document.getElementById('locTags');
   wrap.scrollIntoView({behavior:'smooth',block:'nearest'});
   wrap.classList.add('flash');
@@ -1031,32 +1038,31 @@ function removeLocationTag(idx){
   renderLocationTags();
 }
 document.getElementById('fLocationOther').addEventListener('keydown',ev=>{
-  if(ev.key==='Enter'){ev.preventDefault();addLocationTag();}
+  if(ev.key==='Enter'){
+    ev.preventDefault();
+    document.getElementById('fProvince').focus();
+    filterProvinces();
+  }
 });
 
 async function saveEntry(){
   const btn=document.getElementById('saveBtn');
   const leftoverOther=document.getElementById('fLocationOther').value.trim();
+  const leftoverProvince=document.getElementById('fProvince').value.trim();
   const dateVal=document.getElementById('fDate').value;
-  const provinceVal=document.getElementById('fProvince').value.trim();
   const descVal=document.getElementById('fDesc').value.trim();
   const amountVal=parseFloat(document.getElementById('fAmount').value)||0;
   // Skip validation entirely if the user is closing an essentially blank/untouched form
-  const isBlank=currentLocationTags.length===0&&!leftoverOther&&!provinceVal&&!descVal&&!amountVal&&!pendingReceipt;
+  const isBlank=currentLocationTags.length===0&&!leftoverOther&&!leftoverProvince&&!descVal&&!amountVal&&!pendingReceipt;
   if(isBlank){closeSheet();return;}
-  if(leftoverOther){
-    alert(`You typed "${leftoverOther}" as a company name but haven't added it yet. Tap "Add" (or press Enter) to include it, or clear the box before saving.`);
-    document.getElementById('fLocationOther').focus();
+  if(leftoverOther||leftoverProvince){
+    alert(`You started adding a company (${leftoverOther||'no name yet'} / ${leftoverProvince||'no province yet'}) but haven't finished pairing it with a province. Please complete it (tap a province from the list) or clear the box before saving.`);
+    document.getElementById(leftoverOther?'fProvince':'fLocationOther').focus();
     return;
   }
   if(currentLocationTags.length===0){
-    alert('Please add at least one Customer / Company Name.');
+    alert('Please add at least one Customer / Company Name with its Province.');
     document.getElementById('fLocationOther').focus();
-    return;
-  }
-  if(!provinceVal||!THAI_PROVINCES.includes(provinceVal)){
-    alert('Please select a valid Province from the list.');
-    document.getElementById('fProvince').focus();
     return;
   }
   if(!dateVal){
@@ -1068,8 +1074,7 @@ async function saveEntry(){
   const e={
     id:editIndex===null?uid():state.entries[editIndex].id,
     date:dateVal,
-    locations:currentLocationTags.slice(),
-    province:provinceVal,
+    companies:currentLocationTags.slice(),
     desc:descVal,
     purpose:document.getElementById('fPurpose').value.trim(),
     amount:amountVal,
@@ -1204,7 +1209,7 @@ function exportCSV(){
     ?['_unspecified']
     :Object.keys(state.months).filter(k=>k!=='_unspecified'&&k.startsWith(chosen+'-'))
   ).sort();
-  const header=['No.','Date','Month','Employee Name','Employee ID','Customer / Company','Province','Description','Business Purpose','Receipt Attached','Amount (THB)'];
+  const header=['No.','Date','Month','Employee Name','Employee ID','Customer / Company (Province)','Description','Business Purpose','Receipt Attached','Amount (THB)'];
   const rows=[];
   let rowNum=0;
   keysToExport.forEach(key=>{
@@ -1217,8 +1222,7 @@ function exportCSV(){
         key==='_unspecified'?'':(monthLabel(key)||key),
         state.emp.name||'',
         state.emp.id||'',
-        Array.isArray(e.locations)?e.locations.join('; '):(e.location||''),
-        e.province||'',
+        combinedLocation(e),
         e.desc||'',
         e.purpose||'',
         e.hasReceipt?'Yes':'No',
@@ -1318,10 +1322,23 @@ const MONTHS=['January','February','March','April','May','June','July','August',
 function fmtDateShort(d){if(!d)return'—';const p=d.split('-');return p[2]+'/'+p[1];}
 function fmtDateFull(d){if(!d)return'';const p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];}  // DD/MM/YYYY (European)
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function companyProvincePairs(entryLike){
+  if(Array.isArray(entryLike.companies)&&entryLike.companies.length){
+    return entryLike.companies.map(c=>({name:c.name||'',province:c.province||''}));
+  }
+  // Legacy fallback: older entries stored one shared province for all companies
+  if(Array.isArray(entryLike.locations)&&entryLike.locations.length){
+    return entryLike.locations.map(name=>({name,province:entryLike.province||''}));
+  }
+  if(entryLike.location){
+    return[{name:entryLike.location,province:entryLike.province||''}];
+  }
+  return[];
+}
 function combinedLocation(e){
-  const companies=Array.isArray(e.locations)&&e.locations.length?e.locations.join(', '):(e.location||'');
-  if(companies&&e.province)return companies+', '+e.province;
-  return companies||e.province||'';
+  const pairs=companyProvincePairs(e);
+  if(pairs.length===0)return'';
+  return pairs.map(p=>p.name+(p.province?' ('+p.province+')':'')).join('; ');
 }
 function monthLabel(m){
   if(!m)return'';
