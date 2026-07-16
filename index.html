@@ -55,6 +55,37 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
 .field{margin-bottom:12px}
 .field:last-child{margin-bottom:0}
 .field label{display:block;font-size:.8rem;font-weight:600;color:var(--ink-2);margin-bottom:5px}
+.manage-link{
+  float:right;font-size:.72rem;font-weight:600;color:var(--kuka-dark);
+  cursor:pointer;text-transform:none;letter-spacing:0;
+}
+.required-mark{color:var(--kuka-dark);font-weight:700}
+.province-wrap{position:relative}
+.province-list{
+  position:absolute;top:calc(100% + 4px);left:0;right:0;
+  background:#fff;border:1px solid var(--line);border-radius:10px;
+  max-height:220px;overflow-y:auto;z-index:60;display:none;
+  box-shadow:0 8px 20px rgba(0,0,0,.18);
+}
+.province-list.open{display:block}
+.province-item{padding:10px 14px;font-size:.85rem;cursor:pointer;color:var(--ink)}
+.province-item:active{background:var(--bg)}
+.province-empty{padding:10px 14px;font-size:.8rem;color:var(--ink-2)}
+.chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.chip{
+  position:relative;font-family:inherit;font-size:.78rem;font-weight:600;
+  padding:7px 12px;border-radius:20px;border:1px solid var(--line);
+  background:#FAFAF8;color:var(--ink);cursor:pointer;
+}
+.chip:active{background:var(--bg)}
+.chip.add{border-style:dashed;color:var(--kuka-dark);border-color:#FFC199}
+.chip.other{color:var(--ink-2)}
+.chip .chip-x{
+  position:absolute;top:-6px;right:-6px;width:18px;height:18px;
+  background:var(--ink);color:#fff;border-radius:50%;font-size:.6rem;
+  display:flex;align-items:center;justify-content:center;line-height:1;
+}
+.chip-row.manage-mode .chip:not(.add):not(.other){padding-right:12px}
 .field input{
   width:100%;font-family:inherit;font-size:1rem;
   padding:11px 12px;border:1px solid var(--line);
@@ -324,8 +355,23 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   <div class="sheet">
     <h2><span id="sheetTitle">Add Expense</span><button onclick="closeSheet()" aria-label="Close">✕</button></h2>
     <div class="field"><label>Date</label><input id="fDate" type="date"></div>
-    <div class="field"><label>Location / Site</label><input id="fLocation" placeholder="e.g. DENSO Plant, Chonburi"></div>
-    <div class="field"><label>Description</label><input id="fDesc" placeholder="e.g. Fuel, toll fees, hotel accommodation"></div>
+    <div class="field">
+      <label>Customer / Company Name <span class="required-mark">*</span> <span class="manage-link" onclick="toggleManage('loc')" id="locManageLink">✎ Manage</span></label>
+      <div class="chip-row" id="locChips"></div>
+      <input id="fLocation" placeholder="e.g. DENSO Corporation">
+    </div>
+    <div class="field">
+      <label>Province <span class="required-mark">*</span></label>
+      <div class="province-wrap">
+        <input id="fProvince" placeholder="Search province..." autocomplete="off" oninput="filterProvinces()" onfocus="filterProvinces()">
+        <div class="province-list" id="provinceList"></div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Description <span class="manage-link" onclick="toggleManage('desc')" id="descManageLink">✎ Manage</span></label>
+      <div class="chip-row" id="descChips"></div>
+      <input id="fDesc" placeholder="e.g. Fuel, toll fees, hotel accommodation">
+    </div>
     <div class="field"><label>Business Purpose</label><input id="fPurpose" placeholder="e.g. Customer site visit — DENSO plant, Chonburi"></div>
     <div class="field"><label>Amount (THB)</label><input id="fAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00"></div>
 
@@ -458,7 +504,7 @@ function switchMonth(rawMonth){
   if(!state.months[key])state.months[key]=[];
   currentMonthKey=key;
   state.entries=state.months[key];
-  state.entries.forEach(e=>{if(!e.id)e.id=uid();if(e.location===undefined)e.location='';});
+  state.entries.forEach(e=>{if(!e.id)e.id=uid();if(e.location===undefined)e.location='';if(e.province===undefined)e.province='';});
 }
 async function ensureReceiptsLoaded(entries){
   for(const e of entries){
@@ -471,6 +517,30 @@ async function ensureReceiptsLoaded(entries){
 const THB=n=>Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const fmtKB=n=>n>1048576?(n/1048576).toFixed(1)+' MB':Math.round(n/1024)+' KB';
+
+/* ---------- Thailand provinces (fixed, searchable dropdown) ---------- */
+const THAI_PROVINCES=['Amnat Charoen','Ang Thong','Bangkok','Bueng Kan','Buriram','Chachoengsao','Chai Nat','Chaiyaphum','Chanthaburi','Chiang Mai','Chiang Rai','Chonburi','Chumphon','Kalasin','Kamphaeng Phet','Kanchanaburi','Khon Kaen','Krabi','Lampang','Lamphun','Loei','Lopburi','Mae Hong Son','Maha Sarakham','Mukdahan','Nakhon Nayok','Nakhon Pathom','Nakhon Phanom','Nakhon Ratchasima','Nakhon Sawan','Nakhon Si Thammarat','Nan','Narathiwat','Nong Bua Lamphu','Nong Khai','Nonthaburi','Pathum Thani','Pattani','Phang Nga','Phatthalung','Phayao','Phetchabun','Phetchaburi','Phichit','Phitsanulok','Phra Nakhon Si Ayutthaya','Phrae','Phuket','Prachinburi','Prachuap Khiri Khan','Ranong','Ratchaburi','Rayong','Roi Et','Sa Kaeo','Sakon Nakhon','Samut Prakan','Samut Sakhon','Samut Songkhram','Saraburi','Satun','Sing Buri','Sisaket','Songkhla','Sukhothai','Suphan Buri','Surat Thani','Surin','Tak','Trang','Trat','Ubon Ratchathani','Udon Thani','Uthai Thani','Uttaradit','Yala','Yasothon'];
+function filterProvinces(){
+  const val=document.getElementById('fProvince').value.trim().toLowerCase();
+  const list=document.getElementById('provinceList');
+  const matches=val?THAI_PROVINCES.filter(p=>p.toLowerCase().includes(val)):THAI_PROVINCES;
+  if(matches.length===0){
+    list.innerHTML='<div class="province-empty">No matching province</div>';
+  }else{
+    list.innerHTML=matches.map(p=>`<div class="province-item" onclick="selectProvince('${p.replace(/'/g,"\\'")}')">${esc(p)}</div>`).join('');
+  }
+  list.classList.add('open');
+}
+function selectProvince(p){
+  document.getElementById('fProvince').value=p;
+  document.getElementById('provinceList').classList.remove('open');
+}
+document.addEventListener('click',ev=>{
+  if(!ev.target.closest('.province-wrap')){
+    const list=document.getElementById('provinceList');
+    if(list)list.classList.remove('open');
+  }
+});
 
 /* ---------- init / load ---------- */
 async function init(){
@@ -502,8 +572,15 @@ async function load(){
   try{
     const pv=await kv.get(PKEY);
     if(pv){const p=JSON.parse(pv);
-      ['name','id','position','mgrName','mgrPosition','mgrEmail'].forEach(k=>{if(!state.emp[k]&&p[k])state.emp[k]=p[k];});}
+      ['name','id','position','mgrName','mgrPosition','mgrEmail'].forEach(k=>{if(!state.emp[k]&&p[k])state.emp[k]=p[k];});
+      if(!state.emp.descPresets&&Array.isArray(p.descPresets))state.emp.descPresets=p.descPresets;
+      if(!state.emp.locPresets&&Array.isArray(p.locPresets))state.emp.locPresets=p.locPresets;
+    }
   }catch(e){}
+  if(!Array.isArray(state.emp.descPresets)){
+    state.emp.descPresets=['Fuel Expenses','Toll Fees','Parking Fees','Vehicle Maintenance & Service','Public Transportation / Taxi Fare'];
+  }
+  if(!Array.isArray(state.emp.locPresets))state.emp.locPresets=[];
   if(!state.months)state.months={};
   // Migrate older single-month data (no archive yet) into the new per-month structure
   if(Array.isArray(state.entries)&&state.entries.length&&Object.keys(state.months).length===0){
@@ -548,7 +625,7 @@ let profTimer=null;
 function persistProfile(){
   clearTimeout(profTimer);
   profTimer=setTimeout(()=>{
-    kv.set(PKEY,JSON.stringify({name:state.emp.name,id:state.emp.id,position:state.emp.position,mgrName:state.emp.mgrName,mgrPosition:state.emp.mgrPosition,mgrEmail:state.emp.mgrEmail})).catch(()=>{});
+    kv.set(PKEY,JSON.stringify({name:state.emp.name,id:state.emp.id,position:state.emp.position,mgrName:state.emp.mgrName,mgrPosition:state.emp.mgrPosition,mgrEmail:state.emp.mgrEmail,descPresets:state.emp.descPresets,locPresets:state.emp.locPresets})).catch(()=>{});
   },600);
 }
 ['empName','empId','empPosition','mgrName','mgrPosition','mgrEmail'].forEach(id=>{
@@ -626,14 +703,18 @@ function removeReceipt(ev){
 function openSheet(i=null){
   editIndex=i;pendingReceipt=null;pendingRemoved=false;
   document.getElementById('sheetTitle').textContent=i===null?'Add Expense':'Edit Expense';
-  const e=i===null?{date:'',location:'',desc:'',purpose:'',amount:''}:state.entries[i];
+  const e=i===null?{date:'',location:'',province:'',desc:'',purpose:'',amount:''}:state.entries[i];
   document.getElementById('fDate').value=e.date||'';
   document.getElementById('fLocation').value=e.location||'';
+  document.getElementById('fProvince').value=e.province||'';
   document.getElementById('fDesc').value=e.desc||'';
   document.getElementById('fPurpose').value=e.purpose||'';
   document.getElementById('fAmount').value=e.amount||'';
+  document.getElementById('provinceList').classList.remove('open');
   if(i!==null&&e.hasReceipt&&receipts[e.id])showAttachPreview(receipts[e.id].url);
   else hideAttachPreview();
+  manageMode.desc=false;manageMode.loc=false;
+  renderChips('desc');renderChips('loc');
   document.getElementById('overlay').classList.add('open');
 }
 function closeSheet(){document.getElementById('overlay').classList.remove('open');}
@@ -644,25 +725,98 @@ function duplicateEntry(i){
   const todayIso=new Date().toISOString().slice(0,10);
   document.getElementById('fDate').value=todayIso;
   document.getElementById('fLocation').value=src.location||'';
+  document.getElementById('fProvince').value=src.province||'';
   document.getElementById('fDesc').value=src.desc||'';
   document.getElementById('fPurpose').value=src.purpose||'';
   document.getElementById('fAmount').value=src.amount||'';
+  document.getElementById('provinceList').classList.remove('open');
   hideAttachPreview();
+  manageMode.desc=false;manageMode.loc=false;
+  renderChips('desc');renderChips('loc');
   document.getElementById('overlay').classList.add('open');
+}
+
+/* ---------- quick-select chips (Description / Location) ---------- */
+let manageMode={desc:false,loc:false};
+function chipConfig(type){
+  return type==='desc'
+    ?{presets:state.emp.descPresets,inputId:'fDesc',rowId:'descChips',linkId:'descManageLink'}
+    :{presets:state.emp.locPresets,inputId:'fLocation',rowId:'locChips',linkId:'locManageLink'};
+}
+function renderChips(type){
+  const cfg=chipConfig(type);
+  const row=document.getElementById(cfg.rowId);
+  const mode=manageMode[type];
+  row.className='chip-row'+(mode?' manage-mode':'');
+  document.getElementById(cfg.linkId).textContent=mode?'Done':'✎ Manage';
+  let html='';
+  cfg.presets.forEach((p,idx)=>{
+    html+=`<button type="button" class="chip" onclick="${mode?`removePreset('${type}',${idx})`:`selectChip('${type}',${idx})`}">${esc(p)}${mode?'<span class="chip-x">✕</span>':''}</button>`;
+  });
+  html+=`<button type="button" class="chip add" onclick="addPreset('${type}')">＋ Add</button>`;
+  if(!mode)html+=`<button type="button" class="chip other" onclick="otherChip('${type}')">Other</button>`;
+  row.innerHTML=html;
+}
+function toggleManage(type){
+  manageMode[type]=!manageMode[type];
+  renderChips(type);
+}
+function selectChip(type,idx){
+  const cfg=chipConfig(type);
+  document.getElementById(cfg.inputId).value=cfg.presets[idx];
+}
+function otherChip(type){
+  const cfg=chipConfig(type);
+  const input=document.getElementById(cfg.inputId);
+  input.value='';input.focus();
+}
+function addPreset(type){
+  const label=type==='desc'?'description':'location';
+  const val=(prompt(`Add a new ${label} preset:`)||'').trim();
+  if(!val)return;
+  const cfg=chipConfig(type);
+  if(cfg.presets.some(p=>p.toLowerCase()===val.toLowerCase())){
+    document.getElementById(cfg.inputId).value=val;
+    return;
+  }
+  cfg.presets.push(val);
+  persistProfile();
+  renderChips(type);
+  document.getElementById(cfg.inputId).value=val;
+}
+function removePreset(type,idx){
+  const cfg=chipConfig(type);
+  if(!confirm(`Remove "${cfg.presets[idx]}" from quick-select? This will not affect any saved expense items.`))return;
+  cfg.presets.splice(idx,1);
+  persistProfile();
+  renderChips(type);
 }
 async function saveEntry(){
   const btn=document.getElementById('saveBtn');
+  const companyVal=document.getElementById('fLocation').value.trim();
+  const provinceVal=document.getElementById('fProvince').value.trim();
+  const descVal=document.getElementById('fDesc').value.trim();
+  const amountVal=parseFloat(document.getElementById('fAmount').value)||0;
+  // Skip validation entirely if the user is closing an essentially blank/untouched form
+  const isBlank=!companyVal&&!provinceVal&&!descVal&&!amountVal&&!pendingReceipt;
+  if(isBlank){closeSheet();return;}
+  if(!companyVal){alert('Please enter the Customer / Company Name.');document.getElementById('fLocation').focus();return;}
+  if(!provinceVal||!THAI_PROVINCES.includes(provinceVal)){
+    alert('Please select a valid Province from the list.');
+    document.getElementById('fProvince').focus();
+    return;
+  }
   btn.disabled=true;
   const e={
     id:editIndex===null?uid():state.entries[editIndex].id,
     date:document.getElementById('fDate').value,
-    location:document.getElementById('fLocation').value.trim(),
-    desc:document.getElementById('fDesc').value.trim(),
+    location:companyVal,
+    province:provinceVal,
+    desc:descVal,
     purpose:document.getElementById('fPurpose').value.trim(),
-    amount:parseFloat(document.getElementById('fAmount').value)||0,
+    amount:amountVal,
     hasReceipt:editIndex!==null?!!state.entries[editIndex].hasReceipt:false
   };
-  if(!e.desc&&!e.amount&&!pendingReceipt){btn.disabled=false;closeSheet();return;}
   try{
     if(pendingReceipt){
       await rstore.set(e.id,pendingReceipt.blob||pendingReceipt.dataUrl);
@@ -789,6 +943,10 @@ const MONTHS=['January','February','March','April','May','June','July','August',
 function fmtDateShort(d){if(!d)return'—';const p=d.split('-');return p[2]+'/'+p[1];}
 function fmtDateFull(d){if(!d)return'';const p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];}  // DD/MM/YYYY (European)
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function combinedLocation(e){
+  if(e.location&&e.province)return e.location+', '+e.province;
+  return e.location||e.province||'';
+}
 function monthLabel(m){
   if(!m)return'';
   const p=m.split('-');return MONTHS[parseInt(p[1])-1]+' '+p[0];
@@ -807,7 +965,7 @@ function render(){
       <div class="entry-date">${fmtDateShort(e.date)}</div>
       <div class="entry-body">
         <div class="entry-desc">${esc(e.desc)||'(No description)'}</div>
-        ${e.location?`<div class="entry-purpose">📍 ${esc(e.location)}</div>`:''}
+        ${combinedLocation(e)?`<div class="entry-purpose">📍 ${esc(combinedLocation(e))}</div>`:''}
         <div class="entry-purpose">${esc(e.purpose)}</div>
         <div class="entry-amt">${THB(e.amount)} THB</div>
         ${thumb}
@@ -917,7 +1075,7 @@ function buildPrint(total){
       rows+=`<tr>
         <td class="c">${i+1}</td>
         <td class="c">${fmtDateFull(e.date)}</td>
-        <td>${esc(e.location)}</td>
+        <td>${esc(combinedLocation(e))}</td>
         <td>${esc(e.desc)}</td>
         <td>${esc(e.purpose)}</td>
         <td class="c">${e.hasReceipt?'Yes':'No'}</td>
@@ -953,7 +1111,7 @@ function buildPrint(total){
       <tr>
         <th style="width:4%">No.</th>
         <th style="width:10%">Date</th>
-        <th style="width:16%">Location / Site</th>
+        <th style="width:16%">Customer / Province</th>
         <th style="width:23%">Description</th>
         <th style="width:20%">Business Purpose</th>
         <th style="width:9%">Receipt Attached</th>
