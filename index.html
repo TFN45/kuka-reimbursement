@@ -134,6 +134,15 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   border-radius:8px;background:#FAFAF8;color:var(--ink);appearance:none;
 }
 .field input:focus{outline:2px solid var(--kuka);outline-offset:-1px;background:#fff}
+.field select{
+  width:100%;font-family:inherit;font-size:1rem;
+  padding:11px 12px;border:1px solid var(--line);
+  border-radius:8px;background:#FAFAF8;color:var(--ink);appearance:none;
+}
+.field select:focus{outline:2px solid var(--kuka);outline-offset:-1px;background:#fff}
+.storage-usage-text{font-size:.82rem;color:var(--ink-2);margin-bottom:8px}
+.storage-usage-track{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+.storage-usage-fill{height:100%;background:var(--kuka);border-radius:4px 0 0 4px;transition:width .3s ease}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
 /* ===== Entry list ===== */
@@ -373,12 +382,23 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   </div>
   <div class="attach-status" style="margin-top:6px">Opens your email app with the subject/message ready — export the PDF first (🖨 button below) and attach it manually before sending.</div>
 
+  <div class="section-label">Storage Usage</div>
+  <div class="card">
+    <div class="storage-usage-text" id="storageUsageText">Checking…</div>
+    <div class="storage-usage-track"><div class="storage-usage-fill" id="storageUsageFill" style="width:0%"></div></div>
+  </div>
+
   <div class="section-label">Data Backup</div>
+  <div class="field">
+    <label>Backup Year</label>
+    <select id="backupYearSelect"></select>
+  </div>
   <div class="btn-row" style="margin-top:0">
-    <button class="btn btn-ghost btn-sm" onclick="exportBackup()">⬇ Back Up Data (.json)</button>
+    <button class="btn btn-ghost btn-sm" onclick="exportBackup()">⬇ Back Up Selected Year</button>
     <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importFile').click()">⬆ Restore Data</button>
     <input type="file" id="importFile" accept=".json,application/json" style="display:none">
   </div>
+  <div class="attach-status" style="margin-top:2px">Restoring only adds months that don't already exist on this device — it never overwrites or deletes existing data.</div>
   <div class="saved-note" id="savedNote"></div>
 </main>
 
@@ -396,7 +416,7 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
 <div class="overlay" id="overlay">
   <div class="sheet">
     <h2><span id="sheetTitle">Add Expense</span><button onclick="closeSheet()" aria-label="Close">✕</button></h2>
-    <div class="field"><label>Date</label><input id="fDate" type="date"></div>
+    <div class="field"><label>Date <span class="required-mark">*</span></label><input id="fDate" type="date"></div>
     <div class="field">
       <label>Customer / Company Name (select all that apply) <span class="required-mark">*</span> <span class="manage-link" onclick="toggleManage('loc')" id="locManageLink">✎ Manage</span></label>
       <div class="tag-row" id="locTags"></div>
@@ -563,6 +583,33 @@ async function ensureReceiptsLoaded(entries){
 const THB=n=>Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const fmtKB=n=>n>1048576?(n/1048576).toFixed(1)+' MB':Math.round(n/1024)+' KB';
+function fmtBytes(n){
+  if(n>=1073741824)return(n/1073741824).toFixed(2)+' GB';
+  if(n>=1048576)return(n/1048576).toFixed(1)+' MB';
+  if(n>=1024)return Math.round(n/1024)+' KB';
+  return n+' B';
+}
+async function updateStorageUsage(){
+  const textEl=document.getElementById('storageUsageText');
+  const fillEl=document.getElementById('storageUsageFill');
+  if(!textEl)return;
+  if(!(navigator.storage&&navigator.storage.estimate)){
+    textEl.textContent='Storage usage info is not available in this browser.';
+    fillEl.style.width='0%';
+    return;
+  }
+  try{
+    const est=await navigator.storage.estimate();
+    const usage=est.usage||0;
+    const quota=est.quota||0;
+    const pct=quota?Math.min(100,Math.round(usage/quota*100)):0;
+    textEl.innerHTML=`${fmtBytes(usage)} used of ${fmtBytes(quota)} available (${pct}%)`;
+    fillEl.style.width=pct+'%';
+    fillEl.style.background=pct>85?'#D64545':(pct>60?'#E0A100':'var(--kuka)');
+  }catch(e){
+    textEl.textContent='Could not determine storage usage.';
+  }
+}
 
 /* ---------- Thailand provinces (fixed, searchable dropdown) ---------- */
 const THAI_PROVINCES=['Amnat Charoen','Ang Thong','Bangkok','Bueng Kan','Buriram','Chachoengsao','Chai Nat','Chaiyaphum','Chanthaburi','Chiang Mai','Chiang Rai','Chonburi','Chumphon','Kalasin','Kamphaeng Phet','Kanchanaburi','Khon Kaen','Krabi','Lampang','Lamphun','Loei','Lopburi','Mae Hong Son','Maha Sarakham','Mukdahan','Nakhon Nayok','Nakhon Pathom','Nakhon Phanom','Nakhon Ratchasima','Nakhon Sawan','Nakhon Si Thammarat','Nan','Narathiwat','Nong Bua Lamphu','Nong Khai','Nonthaburi','Pathum Thani','Pattani','Phang Nga','Phatthalung','Phayao','Phetchabun','Phetchaburi','Phichit','Phitsanulok','Phra Nakhon Si Ayutthaya','Phrae','Phuket','Prachinburi','Prachuap Khiri Khan','Ranong','Ratchaburi','Rayong','Roi Et','Sa Kaeo','Sakon Nakhon','Samut Prakan','Samut Sakhon','Samut Songkhram','Saraburi','Satun','Sing Buri','Sisaket','Songkhla','Sukhothai','Suphan Buri','Surat Thani','Surin','Tak','Trang','Trat','Ubon Ratchathani','Udon Thani','Uthai Thani','Uttaradit','Yala','Yasothon'];
@@ -627,6 +674,7 @@ async function init(){
     document.getElementById('attachHint').textContent='Limited storage mode — images will be resized';
   }
   await load();
+  updateStorageUsage();
 }
 async function load(){
   try{const v=await kv.get(KEY);if(v)state=JSON.parse(v);}catch(e){}
@@ -676,7 +724,7 @@ let saveTimer=null;
 function persist(){
   clearTimeout(saveTimer);
   saveTimer=setTimeout(async()=>{
-    try{await kv.set(KEY,JSON.stringify(state));noteMsg('✓ Saved automatically');}
+    try{await kv.set(KEY,JSON.stringify(state));noteMsg('✓ Saved automatically');updateStorageUsage();}
     catch(e){noteMsg('');alert('Save failed (storage may be full) — please back up your data as a .json file.');}
   },400);
 }
@@ -825,7 +873,7 @@ function renderChips(type){
     let html='';
     cfg.presets.forEach((p,idx)=>{
       html+=`<div class="preset-editor-row">
-        <input class="name" value="${escAttr(p.name)}" oninput="updatePresetField('loc',${idx},'name',this.value)" placeholder="Company name">
+        <input class="name" value="${escAttr(p.name)}" oninput="updatePresetField('loc',${idx},'name',this.value)" onblur="validatePresetNameOnBlur('loc',${idx},this)" placeholder="Company name">
         <input class="abbr" value="${escAttr(p.abbr)}" maxlength="6" oninput="updatePresetField('loc',${idx},'abbr',this.value.toUpperCase())" placeholder="ABBR">
         <button type="button" class="del-btn" onclick="removePreset('loc',${idx})" aria-label="Delete">🗑</button>
       </div>`;
@@ -860,6 +908,15 @@ function updatePresetField(type,idx,field,value){
   persistProfile();
   // Live-refresh any tags already on screen so edits reflect immediately without losing focus
   renderLocationTags();
+}
+function validatePresetNameOnBlur(type,idx,inputEl){
+  const cfg=chipConfig(type);
+  const val=inputEl.value.trim();
+  const isDup=cfg.presets.some((p,i)=>i!==idx&&p.name.trim().toLowerCase()===val.toLowerCase());
+  if(isDup){
+    alert(`"${val}" is already used by another company preset in this list. Please use a different name so tags don't get mixed up.`);
+    inputEl.focus();
+  }
 }
 function addPresetInline(type){
   const nameEl=document.getElementById('newLocName');
@@ -963,14 +1020,19 @@ document.getElementById('fLocationOther').addEventListener('keydown',ev=>{
 
 async function saveEntry(){
   const btn=document.getElementById('saveBtn');
-  // Auto-capture any typed-but-not-yet-added company name before validating
-  addLocationTag();
+  const leftoverOther=document.getElementById('fLocationOther').value.trim();
+  const dateVal=document.getElementById('fDate').value;
   const provinceVal=document.getElementById('fProvince').value.trim();
   const descVal=document.getElementById('fDesc').value.trim();
   const amountVal=parseFloat(document.getElementById('fAmount').value)||0;
   // Skip validation entirely if the user is closing an essentially blank/untouched form
-  const isBlank=currentLocationTags.length===0&&!provinceVal&&!descVal&&!amountVal&&!pendingReceipt;
+  const isBlank=currentLocationTags.length===0&&!leftoverOther&&!provinceVal&&!descVal&&!amountVal&&!pendingReceipt;
   if(isBlank){closeSheet();return;}
+  if(leftoverOther){
+    alert(`You typed "${leftoverOther}" as a company name but haven't added it yet. Tap "Add" (or press Enter) to include it, or clear the box before saving.`);
+    document.getElementById('fLocationOther').focus();
+    return;
+  }
   if(currentLocationTags.length===0){
     alert('Please add at least one Customer / Company Name.');
     document.getElementById('fLocationOther').focus();
@@ -981,10 +1043,15 @@ async function saveEntry(){
     document.getElementById('fProvince').focus();
     return;
   }
+  if(!dateVal){
+    alert('Please select a Date for this expense.');
+    document.getElementById('fDate').focus();
+    return;
+  }
   btn.disabled=true;
   const e={
     id:editIndex===null?uid():state.entries[editIndex].id,
-    date:document.getElementById('fDate').value,
+    date:dateVal,
     locations:currentLocationTags.slice(),
     province:provinceVal,
     desc:descVal,
@@ -1018,10 +1085,18 @@ async function delEntry(i){
   state.entries.splice(i,1);persist();render();
 }
 async function clearAll(){
-  const label=monthLabel(state.emp.month)||'this period';
-  if(!confirm(`Clear all expense items for ${label}? Other months remain archived and untouched.`))return;
+  if(state.entries.length===0){alert('There are no items to clear for this period.');return;}
+  const label=monthLabel(state.emp.month)||'UNSPECIFIED';
+  const typed=prompt(`This will PERMANENTLY delete all ${state.entries.length} expense item(s) for ${label}. Other months are not affected and cannot be undone.\n\nType the month name exactly to confirm:\n"${label}"`);
+  if(typed===null)return;
+  if(typed.trim()!==label){
+    alert('Text did not match — nothing was deleted.');
+    return;
+  }
   for(const e of state.entries){if(e.hasReceipt){await rstore.del(e.id);delete receipts[e.id];}}
   state.entries.length=0;persist();render();
+  updateStorageUsage();
+  noteMsg(`✓ Cleared all items for ${label}`);
 }
 
 /* ---------- backup / restore ---------- */
@@ -1033,23 +1108,72 @@ function blobToDataUrl(blob){
     r.readAsDataURL(blob);
   });
 }
-async function exportBackup(){
-  noteMsg('Preparing backup file…');
-  for(const key in state.months){await ensureReceiptsLoaded(state.months[key]);}
-  const rc={};
-  for(const id in receipts){
-    rc[id]=receipts[id].blob?await blobToDataUrl(receipts[id].blob):receipts[id].dataUrl;
+function availableBackupYears(){
+  const years=new Set();
+  let hasUnspecified=false;
+  Object.keys(state.months).forEach(k=>{
+    if(!state.months[k]||state.months[k].length===0)return;
+    if(k==='_unspecified')hasUnspecified=true;
+    else years.add(k.slice(0,4));
+  });
+  return{years:Array.from(years).sort().reverse(),hasUnspecified};
+}
+function populateBackupYearOptions(){
+  const sel=document.getElementById('backupYearSelect');
+  if(!sel)return;
+  const prevVal=sel.value;
+  const{years,hasUnspecified}=availableBackupYears();
+  sel.innerHTML='';
+  years.forEach(y=>{
+    const opt=document.createElement('option');
+    opt.value=y;opt.textContent=y;
+    sel.appendChild(opt);
+  });
+  if(hasUnspecified){
+    const opt=document.createElement('option');
+    opt.value='_unspecified';opt.textContent='No month set';
+    sel.appendChild(opt);
   }
-  const payload={version:3,exported:new Date().toISOString(),state,receipts:rc};
+  if(years.length===0&&!hasUnspecified){
+    const opt=document.createElement('option');
+    opt.value='';opt.textContent='No data yet';
+    sel.appendChild(opt);
+  }
+  if(Array.from(sel.options).some(o=>o.value===prevVal))sel.value=prevVal;
+}
+async function exportBackup(){
+  const sel=document.getElementById('backupYearSelect');
+  const chosen=sel?sel.value:'';
+  if(!chosen){alert('No data available to back up yet.');return;}
+  noteMsg('Preparing backup file…');
+  const keysToExport=chosen==='_unspecified'
+    ?['_unspecified']
+    :Object.keys(state.months).filter(k=>k!=='_unspecified'&&k.startsWith(chosen+'-'));
+  const monthsSubset={};
+  for(const k of keysToExport){
+    if(state.months[k]&&state.months[k].length){
+      await ensureReceiptsLoaded(state.months[k]);
+      monthsSubset[k]=state.months[k];
+    }
+  }
+  const rc={};
+  for(const k in monthsSubset){
+    for(const e of monthsSubset[k]){
+      if(e.hasReceipt&&receipts[e.id]){
+        rc[e.id]=receipts[e.id].blob?await blobToDataUrl(receipts[e.id].blob):receipts[e.id].dataUrl;
+      }
+    }
+  }
+  const payload={version:4,exported:new Date().toISOString(),state:{emp:state.emp,months:monthsSubset},receipts:rc};
   const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  const stamp=new Date().toISOString().slice(0,10);
-  a.download='kuka_reimbursement_full-backup_'+stamp+'.json';
+  const label=chosen==='_unspecified'?'no-month':chosen;
+  a.download='kuka_reimbursement_'+label+'.json';
   document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),5000);
-  const monthCount=Object.keys(state.months).filter(k=>state.months[k].length>0).length;
-  noteMsg('✓ Backup downloaded — '+monthCount+' month(s) ('+fmtKB(blob.size)+')');
+  const itemCount=Object.values(monthsSubset).reduce((s,arr)=>s+arr.length,0);
+  noteMsg(`✓ Backup downloaded — ${label} (${itemCount} item${itemCount!==1?'s':''}, ${fmtKB(blob.size)})`);
 }
 document.getElementById('importFile').addEventListener('change',ev=>{
   const file=ev.target.files[0];
@@ -1058,26 +1182,38 @@ document.getElementById('importFile').addEventListener('change',ev=>{
   reader.onload=async()=>{
     try{
       const p=JSON.parse(reader.result);
-      const hasNew=p.state&&p.state.months&&typeof p.state.months==='object';
-      const hasLegacy=p.state&&Array.isArray(p.state.entries);
-      if(!hasNew&&!hasLegacy)throw new Error('bad');
-      if(!confirm('Restore data from this file? Current data (all months) will be replaced.'))return;
-      state=p.state;
-      if(!state.months)state.months={};
-      if(hasLegacy&&Object.keys(state.months).length===0){
-        state.months[monthKeyOf(state.emp&&state.emp.month)]=state.entries;
+      const importedMonths=(p.state&&p.state.months&&typeof p.state.months==='object')
+        ?p.state.months
+        :(p.state&&Array.isArray(p.state.entries)?{[monthKeyOf(p.state.emp&&p.state.emp.month)]:p.state.entries}:null);
+      if(!importedMonths)throw new Error('bad');
+      const keysInFile=Object.keys(importedMonths).filter(k=>importedMonths[k]&&importedMonths[k].length>0);
+      if(keysInFile.length===0){alert('This backup file has no expense data to restore.');return;}
+      // Safe merge: never overwrite months that already have data on this device
+      const newKeys=keysInFile.filter(k=>!state.months[k]||state.months[k].length===0);
+      const skipKeys=keysInFile.filter(k=>state.months[k]&&state.months[k].length>0);
+      const nameOf=k=>k==='_unspecified'?'No month set':(monthLabel(k)||k);
+      let msg=`This backup contains ${keysInFile.length} month(s).\n\n`;
+      if(newKeys.length)msg+=`✓ Will be added: ${newKeys.map(nameOf).join(', ')}\n\n`;
+      if(skipKeys.length)msg+=`⚠ Already exist on this device and will be SKIPPED (not overwritten): ${skipKeys.map(nameOf).join(', ')}\n\n`;
+      if(newKeys.length===0){alert(msg+'Nothing new to restore — all months in this file already exist on this device.');return;}
+      msg+='Continue?';
+      if(!confirm(msg))return;
+      if(p.state&&p.state.emp){
+        ['name','id','position','mgrName','mgrPosition','mgrEmail'].forEach(k=>{
+          if(!state.emp[k]&&p.state.emp[k])state.emp[k]=p.state.emp[k];
+        });
       }
-      receipts={};
       let missingImages=false;
-      for(const key in state.months){
-        const items=state.months[key];
+      for(const key of newKeys){
+        const items=importedMonths[key];
         items.forEach(e=>{if(!e.id)e.id=uid();});
+        state.months[key]=items;
         for(const e of items){
           const du=p.receipts&&p.receipts[e.id];
           if(e.hasReceipt&&du){
             try{
               if(MODE==='idb'){
-                const blob=await (await fetch(du)).blob();
+                const blob=await(await fetch(du)).blob();
                 await rstore.set(e.id,blob);
                 receipts[e.id]={blob,url:URL.createObjectURL(blob)};
               }else{
@@ -1088,8 +1224,9 @@ document.getElementById('importFile').addEventListener('change',ev=>{
           }else{e.hasReceipt=false;}
         }
       }
-      try{await kv.set(KEY,JSON.stringify(state));}catch(err){}
       switchMonth(state.emp&&state.emp.month);
+      try{await kv.set(KEY,JSON.stringify(state));}catch(err){}
+      persistProfile();
       document.getElementById('empName').value=state.emp.name||'';
       document.getElementById('empId').value=state.emp.id||'';
       document.getElementById('empPosition').value=state.emp.position||'';
@@ -1098,7 +1235,8 @@ document.getElementById('importFile').addEventListener('change',ev=>{
       document.getElementById('mgrEmail').value=state.emp.mgrEmail||'';
       document.getElementById('empMonth').value=state.emp.month||'';
       render();
-      noteMsg(missingImages?'✓ Restored (some images skipped — storage full)':'✓ Data restored successfully');
+      updateStorageUsage();
+      noteMsg((missingImages?'✓ Restored (some images skipped — storage full) — ':'✓ ')+`Added ${newKeys.length} month(s)`+(skipKeys.length?`, skipped ${skipKeys.length} existing`:''));
     }catch(e){alert('Invalid file — please select a .json file exported from this app.');}
   };
   reader.readAsText(file);
@@ -1159,6 +1297,7 @@ function render(){
   buildPrint(total);
   renderHistory();
   renderGrandTotal();
+  populateBackupYearOptions();
 }
 function monthStats(){
   const keys=Object.keys(state.months).filter(k=>state.months[k].length>0);
@@ -1167,7 +1306,11 @@ function monthStats(){
     return{key:k,label:k==='_unspecified'?'No month set':(monthLabel(k)||k),
       count:items.length,total:items.reduce((s,e)=>s+(e.amount||0),0)};
   });
-  rows.sort((a,b)=>b.key.localeCompare(a.key));
+  rows.sort((a,b)=>{
+    if(a.key==='_unspecified')return 1;
+    if(b.key==='_unspecified')return -1;
+    return b.key.localeCompare(a.key);
+  });
   const grandTotal=rows.reduce((s,r)=>s+r.total,0);
   const grandCount=rows.reduce((s,r)=>s+r.count,0);
   return{rows,grandTotal,grandCount};
@@ -1182,7 +1325,11 @@ function renderHistory(){
   const wrap=document.getElementById('historyList');
   const keys=Object.keys(state.months).filter(k=>k!==currentMonthKey&&state.months[k].length>0);
   document.getElementById('historyEmpty').style.display=keys.length?'none':'block';
-  keys.sort().reverse();
+  keys.sort((a,b)=>{
+    if(a==='_unspecified')return 1;
+    if(b==='_unspecified')return -1;
+    return b.localeCompare(a);
+  });
   wrap.innerHTML='';
   keys.forEach(k=>{
     const items=state.months[k];
