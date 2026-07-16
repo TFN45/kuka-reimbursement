@@ -647,9 +647,12 @@ function filterCompanies(){
 function selectCompanyFromList(name){
   document.getElementById('fLocationOther').value=name;
   const preset=state.emp.locPresets.find(p=>p.name.toLowerCase()===name.toLowerCase());
-  document.getElementById('fProvince').value=(preset&&preset.province)||'';
+  const provinceEl=document.getElementById('fProvince');
+  provinceEl.value=(preset&&preset.province)||'';
+  // 👇 เพิ่มบรรทัดนี้เพื่อให้ระบบตรวจสอบว่ามีการเปลี่ยนแปลง
+  provinceEl.dispatchEvent(new Event('input'));
   document.getElementById('companyList').classList.remove('open');
-  document.getElementById('fProvince').focus();
+  provinceEl.focus();
   filterProvinces();
 }
 function filterProvinces(){
