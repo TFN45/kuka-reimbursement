@@ -250,6 +250,19 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   padding:6px 12px;font-family:inherit;font-size:.78rem;font-weight:600;cursor:pointer;
 }
 .attach-status{font-size:.75rem;color:var(--ink-2);margin-top:6px;min-height:1em;text-align:center}
+.attach-link-badge{
+  margin-top:8px;font-size:.75rem;font-weight:600;color:var(--kuka-dark);
+  background:#FFF0E8;border-radius:8px;padding:6px 10px;text-align:center;
+}
+.rp-row{
+  display:flex;gap:12px;align-items:center;padding:10px;border:1px solid var(--line);
+  border-radius:10px;margin-bottom:8px;cursor:pointer;
+}
+.rp-row:active{background:var(--bg)}
+.rp-row img{width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0}
+.rp-row-body{flex:1;min-width:0}
+.rp-row-desc{font-weight:600;font-size:.88rem}
+.rp-row-meta{font-size:.75rem;color:var(--ink-2);margin-top:2px}
 
 /* ===== Sticky total bar ===== */
 .totalbar{
@@ -452,9 +465,11 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
       <div class="attach-zone" id="attachZone" onclick="document.getElementById('fReceipt').click()">
         📷 <strong>Take photo / choose receipt image</strong><br><span id="attachHint">Stored at 100% original quality</span>
       </div>
+      <button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openReceiptPicker()">🔗 Use receipt from another entry</button>
       <div class="attach-preview" id="attachPreview">
         <img id="attachImg" alt="Receipt">
         <button class="attach-remove" onclick="removeReceipt(event)">✕ Remove image</button>
+        <div class="attach-link-badge" id="attachLinkBadge" style="display:none">🔗 Linked — shared with another entry</div>
       </div>
       <div class="attach-status" id="attachStatus"></div>
     </div>
@@ -470,6 +485,14 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
 <div class="viewer" id="viewer" onclick="closeViewer()">
   <img id="viewerImg" alt="Receipt">
   <button onclick="closeViewer()">Close</button>
+</div>
+
+<!-- Receipt picker: link to another entry's receipt instead of uploading a duplicate -->
+<div class="overlay" id="receiptPickerOverlay">
+  <div class="sheet">
+    <h2><span>Use Receipt From…</span><button onclick="closeReceiptPicker()" aria-label="Close">✕</button></h2>
+    <div id="receiptPickerList"></div>
+  </div>
 </div>
 
 <!-- Spending summary modal -->
@@ -568,6 +591,7 @@ let receipts={};
 let editIndex=null;
 let pendingReceipt=null;
 let pendingRemoved=false;
+let pendingReceiptRef=null;
 let currentMonthKey='';
 const monthKeyOf=m=>m||'_unspecified';
 function switchMonth(rawMonth){
@@ -817,7 +841,8 @@ document.getElementById('fReceipt').addEventListener('change',async ev=>{
       status.textContent='Resized to ~'+fmtKB(dataUrl.length*0.75);
     }
     pendingRemoved=false;
-    showAttachPreview(pendingReceipt.url);
+    pendingReceiptRef=null;
+    showAttachPreview(pendingReceipt.url,false);
   }catch(e){status.textContent='Could not read image — please try again.';}
   ev.target.value='';
 });
@@ -840,25 +865,60 @@ function compressImage(file,MAX,CAP){
     img.src=url;
   });
 }
-function showAttachPreview(url){
+function showAttachPreview(url,isLinked){
   document.getElementById('attachImg').src=url;
   document.getElementById('attachPreview').style.display='block';
   document.getElementById('attachZone').style.display='none';
+  document.getElementById('attachLinkBadge').style.display=isLinked?'block':'none';
 }
 function hideAttachPreview(){
   document.getElementById('attachPreview').style.display='none';
   document.getElementById('attachZone').style.display='block';
   document.getElementById('attachStatus').textContent='';
+  document.getElementById('attachLinkBadge').style.display='none';
 }
 function removeReceipt(ev){
   ev.stopPropagation();
-  pendingReceipt=null;pendingRemoved=true;
+  pendingReceipt=null;pendingReceiptRef=null;pendingRemoved=true;
   hideAttachPreview();
+}
+
+/* ---------- link to another entry's receipt (avoids duplicate uploads, e.g. daily tolls on one statement) ---------- */
+function openReceiptPicker(){
+  const list=document.getElementById('receiptPickerList');
+  const excludeId=editIndex!==null?state.entries[editIndex].id:null;
+  const candidates=state.entries.filter(x=>hasAnyReceipt(x)&&x.id!==excludeId&&receipts[effectiveReceiptId(x)]);
+  if(candidates.length===0){
+    list.innerHTML='<div class="empty">No other items with a receipt in this month yet.</div>';
+  }else{
+    list.innerHTML=candidates.map(x=>{
+      const rid=effectiveReceiptId(x);
+      return`<div class="rp-row" onclick="selectReceiptLink('${x.id}')">
+        <img src="${receipts[rid].url}" alt="">
+        <div class="rp-row-body">
+          <div class="rp-row-desc">${esc(x.desc)||'(No description)'}</div>
+          <div class="rp-row-meta">${fmtDateShort(x.date)} · ${THB(x.amount)} THB</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('receiptPickerOverlay').classList.add('open');
+}
+function closeReceiptPicker(){document.getElementById('receiptPickerOverlay').classList.remove('open');}
+function selectReceiptLink(sourceEntryId){
+  const rid=effectiveReceiptId(state.entries.find(x=>x.id===sourceEntryId));
+  if(!rid||!receipts[rid]){closeReceiptPicker();return;}
+  pendingReceipt=null;
+  pendingRemoved=false;
+  pendingReceiptRef=rid;
+  showAttachPreview(receipts[rid].url,true);
+  document.getElementById('attachStatus').textContent='Linked to another entry — no extra storage used.';
+  closeReceiptPicker();
 }
 
 /* ---------- sheet ---------- */
 function openSheet(i=null){
-  editIndex=i;pendingReceipt=null;pendingRemoved=false;
+  editIndex=i;pendingReceipt=null;pendingRemoved=false;pendingReceiptRef=null;
   document.getElementById('sheetTitle').textContent=i===null?'Add Expense':'Edit Expense';
   const e=i===null?{date:'',companies:[],desc:'',purpose:'',amount:''}:state.entries[i];
   document.getElementById('fDate').value=e.date||'';
@@ -871,8 +931,11 @@ function openSheet(i=null){
   document.getElementById('fAmount').value=e.amount||'';
   document.getElementById('provinceList').classList.remove('open');
   document.getElementById('companyList').classList.remove('open');
-  if(i!==null&&e.hasReceipt&&receipts[e.id])showAttachPreview(receipts[e.id].url);
-  else hideAttachPreview();
+  if(i!==null&&hasAnyReceipt(e)&&receipts[effectiveReceiptId(e)]){
+    showAttachPreview(receipts[effectiveReceiptId(e)].url,!e.hasReceipt);
+  }else{
+    hideAttachPreview();
+  }
   manageMode.desc=false;manageMode.loc=false;pendingDelete={type:null,idx:null};
   renderChips('desc');renderChips('loc');
   document.getElementById('overlay').classList.add('open');
@@ -880,7 +943,7 @@ function openSheet(i=null){
 function closeSheet(){document.getElementById('overlay').classList.remove('open');}
 function duplicateEntry(i){
   const src=state.entries[i];
-  editIndex=null;pendingReceipt=null;pendingRemoved=false;
+  editIndex=null;pendingReceipt=null;pendingRemoved=false;pendingReceiptRef=null;
   document.getElementById('sheetTitle').textContent='Add Expense (Duplicated)';
   const todayIso=new Date().toISOString().slice(0,10);
   document.getElementById('fDate').value=todayIso;
@@ -1077,11 +1140,12 @@ function stageCompanyName(name){
   filterProvinces();
 }
 function finalizeLocationPair(name,province){
-  const dup=currentLocationTags.some(t=>t.name.toLowerCase()===name.toLowerCase()&&t.province===province);
+  let preset=state.emp.locPresets.find(p=>p.name.toLowerCase()===name.toLowerCase());
+  const canonicalName=preset?preset.name:name;
+  const dup=currentLocationTags.some(t=>t.name.toLowerCase()===canonicalName.toLowerCase()&&t.province===province);
   if(dup){
-    alert(`"${name} — ${province}" is already added.`);
+    alert(`"${canonicalName} — ${province}" is already added.`);
   }else{
-    let preset=state.emp.locPresets.find(p=>p.name.toLowerCase()===name.toLowerCase());
     if(!preset){
       const suggested=autoAbbrev(name);
       const typed=prompt(`New company: "${name}"\n\nSet a short abbreviation for the compact tag view (e.g. DENSO):`,suggested);
@@ -1092,7 +1156,7 @@ function finalizeLocationPair(name,province){
       preset.province=province;
     }
     persistProfile();
-    currentLocationTags.push({name,province});
+    currentLocationTags.push({name:canonicalName,province});
     renderLocationTags();
   }
   document.getElementById('fLocationOther').value='';
@@ -1121,15 +1185,16 @@ async function saveEntry(){
   let leftoverProvince=document.getElementById('fProvince').value.trim();
   // If both boxes already hold a valid, exact company + province, finish pairing automatically
   // (covers the case where the user typed an exact match instead of tapping a suggestion)
-  if(leftoverOther&&leftoverProvince&&THAI_PROVINCES.includes(leftoverProvince)){
-    finalizeLocationPair(leftoverOther,leftoverProvince);
+  const provinceMatch=THAI_PROVINCES.find(p=>p.toLowerCase()===leftoverProvince.toLowerCase());
+  if(leftoverOther&&provinceMatch){
+    finalizeLocationPair(leftoverOther,provinceMatch);
     leftoverOther='';leftoverProvince='';
   }
   const dateVal=document.getElementById('fDate').value;
   const descVal=document.getElementById('fDesc').value.trim();
   const amountVal=parseFloat(document.getElementById('fAmount').value)||0;
   // Skip validation entirely if the user is closing an essentially blank/untouched form
-  const isBlank=currentLocationTags.length===0&&!leftoverOther&&!leftoverProvince&&!descVal&&!amountVal&&!pendingReceipt;
+  const isBlank=currentLocationTags.length===0&&!leftoverOther&&!leftoverProvince&&!descVal&&!amountVal&&!pendingReceipt&&!pendingReceiptRef;
   if(isBlank){closeSheet();return;}
   if(leftoverOther||leftoverProvince){
     alert(`You started adding a company (${leftoverOther||'no name yet'} / ${leftoverProvince||'no province yet'}) but haven't finished pairing it with a province. Please complete it (tap a province from the list) or clear the box before saving.`);
@@ -1147,24 +1212,33 @@ async function saveEntry(){
     return;
   }
   btn.disabled=true;
+  const prevEntry=editIndex!==null?state.entries[editIndex]:null;
   const e={
-    id:editIndex===null?uid():state.entries[editIndex].id,
+    id:prevEntry?prevEntry.id:uid(),
     date:dateVal,
     companies:currentLocationTags.slice(),
     desc:descVal,
     purpose:document.getElementById('fPurpose').value.trim(),
     amount:amountVal,
-    hasReceipt:editIndex!==null?!!state.entries[editIndex].hasReceipt:false
+    hasReceipt:prevEntry?!!prevEntry.hasReceipt:false,
+    receiptRef:prevEntry?(prevEntry.receiptRef||null):null
   };
   try{
-    if(pendingReceipt){
+    if(pendingReceiptRef){
+      // Link to another entry's receipt instead of storing a duplicate copy
+      if(e.hasReceipt)await releaseReceiptOwnership(e.id);
+      e.hasReceipt=false;
+      e.receiptRef=pendingReceiptRef;
+    }else if(pendingReceipt){
+      if(e.hasReceipt)await releaseReceiptOwnership(e.id);
       await rstore.set(e.id,pendingReceipt.blob||pendingReceipt.dataUrl);
       receipts[e.id]=pendingReceipt;
       e.hasReceipt=true;
-    }else if(pendingRemoved&&e.hasReceipt){
-      await rstore.del(e.id);
-      delete receipts[e.id];
+      e.receiptRef=null;
+    }else if(pendingRemoved&&(e.hasReceipt||e.receiptRef)){
+      if(e.hasReceipt)await releaseReceiptOwnership(e.id);
       e.hasReceipt=false;
+      e.receiptRef=null;
     }
   }catch(err){
     alert('Could not save the receipt image (storage may be full) — the expense item will be saved without an image.');
@@ -1178,7 +1252,7 @@ async function saveEntry(){
 async function delEntry(i){
   if(!confirm('Delete this expense item?'))return;
   const e=state.entries[i];
-  if(e.hasReceipt){await rstore.del(e.id);delete receipts[e.id];}
+  if(e.hasReceipt)await releaseReceiptOwnership(e.id);
   state.entries.splice(i,1);persist();render();
 }
 async function clearAll(){
@@ -1301,7 +1375,7 @@ function exportCSV(){
         combinedLocation(e),
         e.desc||'',
         e.purpose||'',
-        e.hasReceipt?'Yes':'No',
+        hasAnyReceipt(e)?'Yes':'No',
         (e.amount||0).toFixed(2)
       ]);
     });
@@ -1344,6 +1418,17 @@ document.getElementById('importFile').addEventListener('change',ev=>{
         ['name','id','position','mgrName','mgrPosition','mgrEmail'].forEach(k=>{
           if(!state.emp[k]&&p.state.emp[k])state.emp[k]=p.state.emp[k];
         });
+        if(Array.isArray(p.state.emp.descPresets)){
+          p.state.emp.descPresets.forEach(d=>{
+            if(!state.emp.descPresets.some(x=>x.toLowerCase()===d.toLowerCase()))state.emp.descPresets.push(d);
+          });
+        }
+        if(Array.isArray(p.state.emp.locPresets)){
+          p.state.emp.locPresets.forEach(lp=>{
+            const item=typeof lp==='string'?{name:lp,abbr:autoAbbrev(lp)}:lp;
+            if(!state.emp.locPresets.some(x=>x.name.toLowerCase()===item.name.toLowerCase()))state.emp.locPresets.push(item);
+          });
+        }
       }
       let missingImages=false;
       for(const key of newKeys){
@@ -1411,6 +1496,25 @@ function companyProvincePairs(entryLike){
   }
   return[];
 }
+function effectiveReceiptId(e){return e.hasReceipt?e.id:(e.receiptRef||null);}
+function hasAnyReceipt(e){return !!(e.hasReceipt||e.receiptRef);}
+async function releaseReceiptOwnership(ownerId){
+  // Called before an owning entry's receipt is replaced, removed, or the entry itself deleted.
+  // If other entries link to it, promote one of them to be the new owner so their receipt isn't lost.
+  const referencing=state.entries.filter(x=>x.id!==ownerId&&x.receiptRef===ownerId);
+  const data=receipts[ownerId]?(receipts[ownerId].blob||receipts[ownerId].dataUrl):await rstore.get(ownerId).catch(()=>null);
+  await rstore.del(ownerId);
+  delete receipts[ownerId];
+  if(referencing.length===0)return;
+  const newOwner=referencing[0];
+  if(data){
+    await rstore.set(newOwner.id,data);
+    receipts[newOwner.id]=wrapReceipt(data);
+  }
+  newOwner.hasReceipt=true;
+  newOwner.receiptRef=null;
+  referencing.slice(1).forEach(x=>{x.receiptRef=newOwner.id;});
+}
 function combinedLocation(e){
   const pairs=companyProvincePairs(e);
   if(pairs.length===0)return'';
@@ -1427,15 +1531,16 @@ function render(){
   state.entries.forEach((e,i)=>{
     const div=document.createElement('div');
     div.className='entry';
-    const thumb=e.hasReceipt&&receipts[e.id]
-      ?`<div class="entry-thumb" onclick="openViewer('${e.id}')"><img src="${receipts[e.id].url}" alt="">🧾 View receipt</div>`
+    const rid=effectiveReceiptId(e);
+    const thumb=rid&&receipts[rid]
+      ?`<div class="entry-thumb" onclick="openViewer('${rid}')"><img src="${receipts[rid].url}" alt="">${e.hasReceipt?'🧾 View receipt':'🔗 View linked receipt'}</div>`
       :'';
     div.innerHTML=`
       <div class="entry-date">${fmtDateShort(e.date)}</div>
       <div class="entry-body">
         <div class="entry-desc">${esc(e.desc)||'(No description)'}</div>
         ${combinedLocation(e)?`<div class="entry-purpose">📍 ${esc(combinedLocation(e))}</div>`:''}
-        <div class="entry-purpose">${esc(e.purpose)}</div>
+        ${e.purpose?`<div class="entry-purpose">${esc(e.purpose)}</div>`:''}
         <div class="entry-amt">${THB(e.amount)} THB</div>
         ${thumb}
       </div>
@@ -1556,20 +1661,24 @@ function buildPrint(total){
         <td>${esc(combinedLocation(e))}</td>
         <td>${esc(e.desc)}</td>
         <td>${esc(e.purpose)}</td>
-        <td class="c">${e.hasReceipt?'Yes':'No'}</td>
+        <td class="c">${hasAnyReceipt(e)?'Yes':'No'}</td>
         <td class="r">${THB(e.amount)}</td>
       </tr>`;
     });
   }
   let receiptPages='';
   let rcount=0;
+  const printedRids=new Set();
   state.entries.forEach((e,i)=>{
-    if(e.hasReceipt&&receipts[e.id]){
+    const rid=effectiveReceiptId(e);
+    if(rid&&receipts[rid]){
       rcount++;
+      const linkedNote=printedRids.has(rid)?' (same receipt as a previous item above)':'';
+      printedRids.add(rid);
       receiptPages+=`
       <div class="pp-receipt">
-        <h3>Appendix ${rcount} — Supporting Receipt for Item No. ${i+1}: ${esc(e.desc)} · ${fmtDateFull(e.date)} · THB ${THB(e.amount)}</h3>
-        <img src="${receipts[e.id].url}" alt="Receipt for item ${i+1}">
+        <h3>Appendix ${rcount} — Supporting Receipt for Item No. ${i+1}: ${esc(e.desc)} · ${fmtDateFull(e.date)} · THB ${THB(e.amount)}${linkedNote}</h3>
+        <img src="${receipts[rid].url}" alt="Receipt for item ${i+1}">
       </div>`;
     }
   });
