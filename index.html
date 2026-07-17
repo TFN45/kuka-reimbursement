@@ -102,6 +102,8 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   background:var(--ink);color:#fff;border-radius:50%;font-size:.6rem;
   display:flex;align-items:center;justify-content:center;line-height:1;
 }
+.chip.confirm-del{border-color:#D64545}
+.chip.confirm-del .chip-x{background:#D64545;font-weight:700}
 .chip-row.manage-mode .chip:not(.add):not(.other){padding-right:12px}
 
 /* ===== Inline preset editor (Manage mode for company presets) ===== */
@@ -123,6 +125,7 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   flex-shrink:0;width:34px;height:34px;border-radius:8px;border:1px solid var(--line);
   background:#fff;font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;
 }
+.preset-editor-row .del-btn.confirm{background:#D64545;border-color:#D64545;color:#fff;font-weight:700}
 .preset-editor-row .add-btn{color:var(--kuka-dark);border-color:#FFC199;background:#FFF6EF;font-weight:700}
 .preset-editor-row.new-row{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
 .preset-province-note{font-size:.72rem;color:var(--ink-2);margin:-2px 0 8px 2px}
@@ -645,15 +648,18 @@ function filterCompanies(){
   list.classList.add('open');
 }
 function selectCompanyFromList(name){
+  document.getElementById('companyList').classList.remove('open');
   document.getElementById('fLocationOther').value=name;
   const preset=state.emp.locPresets.find(p=>p.name.toLowerCase()===name.toLowerCase());
-  const provinceEl=document.getElementById('fProvince');
-  provinceEl.value=(preset&&preset.province)||'';
-  // 👇 เพิ่มบรรทัดนี้เพื่อให้ระบบตรวจสอบว่ามีการเปลี่ยนแปลง
-  provinceEl.dispatchEvent(new Event('input'));
-  document.getElementById('companyList').classList.remove('open');
-  provinceEl.focus();
-  filterProvinces();
+  if(preset&&preset.province){
+    // Already know this company's province — add the pair immediately, no extra tap needed
+    finalizeLocationPair(name,preset.province);
+  }else{
+    // First time for this company — ask which province just once
+    document.getElementById('fProvince').value='';
+    document.getElementById('fProvince').focus();
+    filterProvinces();
+  }
 }
 function filterProvinces(){
   const val=document.getElementById('fProvince').value.trim().toLowerCase();
@@ -867,7 +873,7 @@ function openSheet(i=null){
   document.getElementById('companyList').classList.remove('open');
   if(i!==null&&e.hasReceipt&&receipts[e.id])showAttachPreview(receipts[e.id].url);
   else hideAttachPreview();
-  manageMode.desc=false;manageMode.loc=false;
+  manageMode.desc=false;manageMode.loc=false;pendingDelete={type:null,idx:null};
   renderChips('desc');renderChips('loc');
   document.getElementById('overlay').classList.add('open');
 }
@@ -888,13 +894,14 @@ function duplicateEntry(i){
   document.getElementById('provinceList').classList.remove('open');
   document.getElementById('companyList').classList.remove('open');
   hideAttachPreview();
-  manageMode.desc=false;manageMode.loc=false;
+  manageMode.desc=false;manageMode.loc=false;pendingDelete={type:null,idx:null};
   renderChips('desc');renderChips('loc');
   document.getElementById('overlay').classList.add('open');
 }
 
 /* ---------- quick-select chips (Description / Location) ---------- */
 let manageMode={desc:false,loc:false};
+let pendingDelete={type:null,idx:null};
 let currentLocationTags=[];
 function chipConfig(type){
   return type==='desc'
@@ -914,12 +921,13 @@ function renderChips(type){
     row.className='preset-editor';
     let html='';
     cfg.presets.forEach((p,idx)=>{
+      const isPending=pendingDelete.type==='loc'&&pendingDelete.idx===idx;
       html+=`<div class="preset-editor-row">
         <input class="name" value="${escAttr(p.name)}" oninput="updatePresetField('loc',${idx},'name',this.value)" onblur="validatePresetNameOnBlur('loc',${idx},this)" placeholder="Company name">
         <input class="abbr" value="${escAttr(p.abbr)}" maxlength="6" oninput="updatePresetField('loc',${idx},'abbr',this.value.toUpperCase())" placeholder="ABBR">
-        <button type="button" class="del-btn" onclick="removePreset('loc',${idx})" aria-label="Delete">🗑</button>
+        <button type="button" class="del-btn${isPending?' confirm':''}" onclick="removePreset('loc',${idx})" aria-label="Delete">${isPending?'✓':'🗑'}</button>
       </div>
-      <div class="preset-province-note">${p.province?'📍 Remembers: '+esc(p.province)+' — updates automatically next time you pick a different one':'📍 No province remembered yet'}</div>`;
+      <div class="preset-province-note">${isPending?'Tap ✓ again to permanently delete this company.':(p.province?'📍 Remembers: '+esc(p.province)+' — updates automatically next time you pick a different one':'📍 No province remembered yet')}</div>`;
     });
     html+=`<div class="preset-editor-row new-row">
       <input class="name" id="newLocName" placeholder="New company name" oninput="autofillNewAbbr()" onkeydown="if(event.key==='Enter'){event.preventDefault();addPresetInline('loc');}">
@@ -939,7 +947,8 @@ function renderChips(type){
   row.className='chip-row'+(mode?' manage-mode':'');
   let html='';
   cfg.presets.forEach((p,idx)=>{
-    html+=`<button type="button" class="chip" onclick="${mode?`removePreset('${type}',${idx})`:`selectChip('${type}',${idx})`}">${esc(presetLabel(type,p))}${mode?'<span class="chip-x">✕</span>':''}</button>`;
+    const isPending=mode&&pendingDelete.type===type&&pendingDelete.idx===idx;
+    html+=`<button type="button" class="chip${isPending?' confirm-del':''}" onclick="${mode?`removePreset('${type}',${idx})`:`selectChip('${type}',${idx})`}">${esc(presetLabel(type,p))}${mode?`<span class="chip-x">${isPending?'✓':'✕'}</span>`:''}</button>`;
   });
   html+=`<button type="button" class="chip add" onclick="addPreset('${type}')">＋ Add</button>`;
   if(!mode)html+=`<button type="button" class="chip other" onclick="otherChip('${type}')">Other</button>`;
@@ -984,6 +993,7 @@ function addPresetInline(type){
 }
 function toggleManage(type){
   manageMode[type]=!manageMode[type];
+  pendingDelete={type:null,idx:null};
   renderChips(type);
 }
 function selectChip(type,idx){
@@ -1034,11 +1044,15 @@ function addPreset(type){
 }
 function removePreset(type,idx){
   const cfg=chipConfig(type);
-  const label=presetLabel(type,cfg.presets[idx]);
-  if(!confirm(`Remove "${label}" from quick-select? This will not affect any saved expense items.`))return;
-  cfg.presets.splice(idx,1);
-  persistProfile();
-  renderChips(type);
+  if(pendingDelete.type===type&&pendingDelete.idx===idx){
+    cfg.presets.splice(idx,1);
+    persistProfile();
+    pendingDelete={type:null,idx:null};
+    renderChips(type);
+  }else{
+    pendingDelete={type,idx};
+    renderChips(type);
+  }
 }
 
 /* ---------- company + province pairs (each company keeps its own province) ---------- */
@@ -1103,8 +1117,14 @@ document.getElementById('fLocationOther').addEventListener('keydown',ev=>{
 
 async function saveEntry(){
   const btn=document.getElementById('saveBtn');
-  const leftoverOther=document.getElementById('fLocationOther').value.trim();
-  const leftoverProvince=document.getElementById('fProvince').value.trim();
+  let leftoverOther=document.getElementById('fLocationOther').value.trim();
+  let leftoverProvince=document.getElementById('fProvince').value.trim();
+  // If both boxes already hold a valid, exact company + province, finish pairing automatically
+  // (covers the case where the user typed an exact match instead of tapping a suggestion)
+  if(leftoverOther&&leftoverProvince&&THAI_PROVINCES.includes(leftoverProvince)){
+    finalizeLocationPair(leftoverOther,leftoverProvince);
+    leftoverOther='';leftoverProvince='';
+  }
   const dateVal=document.getElementById('fDate').value;
   const descVal=document.getElementById('fDesc').value.trim();
   const amountVal=parseFloat(document.getElementById('fAmount').value)||0;
@@ -1618,7 +1638,7 @@ function sendApprovalEmail(){
     '',
     'A detailed PDF (including itemized expenses and receipt images) is attached to this email.',
     '',
-    '​I would appreciate it if you could review and approve it at your earliest convenience. Please let me know if you need any further information.',
+    'Kindly review and approve at your convenience. Please let me know if any additional information is required.',
     '',
     'Best regards,',
     state.emp.name||''
