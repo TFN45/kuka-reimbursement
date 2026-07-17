@@ -35,6 +35,12 @@ body{
 /* ===== Header ===== */
 header{background:var(--ink);color:#fff;padding:18px 16px 16px}
 .brand{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.header-nav-btn{
+  margin-left:auto;background:rgba(255,255,255,.12);border:none;color:#fff;
+  width:34px;height:34px;border-radius:9px;font-size:1rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.header-nav-btn:active{background:rgba(255,255,255,.22)}
 .brand-mark{
   background:var(--kuka);color:#fff;font-weight:700;
   font-family:'IBM Plex Mono',monospace;font-size:.8rem;
@@ -263,6 +269,15 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
 .rp-row-body{flex:1;min-width:0}
 .rp-row-desc{font-weight:600;font-size:.88rem}
 .rp-row-meta{font-size:.75rem;color:var(--ink-2);margin-top:2px}
+.bulk-row{
+  display:flex;gap:10px;align-items:center;padding:9px 10px;border:1px solid var(--line);
+  border-radius:10px;margin-bottom:6px;
+}
+.bulk-row input[type=checkbox]{width:19px;height:19px;flex-shrink:0;accent-color:var(--kuka)}
+.bulk-row-body{flex:1;min-width:0}
+.bulk-row-desc{font-weight:600;font-size:.85rem}
+.bulk-row-meta{font-size:.72rem;color:var(--ink-2);margin-top:1px}
+.bulk-row-existing{font-size:.68rem;color:var(--kuka-dark);font-weight:600}
 
 /* ===== Sticky total bar ===== */
 .totalbar{
@@ -344,79 +359,86 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
 <header>
   <div class="brand">
     <span class="brand-mark">KUKA OS</span>
-    <h1>Expense Reimbursement</h1>
+    <h1 id="headerTitle">Expense Reimbursement</h1>
+    <button class="header-nav-btn" id="headerNavBtn" onclick="toggleSettingsView()" aria-label="Settings">⚙️</button>
   </div>
-  <p>Original-quality receipts · Saved on this device · Export as formal PDF</p>
+  <p id="headerTagline">Original-quality receipts · Saved on this device · Export as formal PDF</p>
 </header>
 
 <main>
-  <div class="storage-note" id="storageNote"></div>
-
-  <div class="section-label">Employee Details</div>
-  <div class="card">
-    <div class="row2">
-      <div class="field"><label>Full Name</label><input id="empName" placeholder="First name, Last name"></div>
-      <div class="field"><label>Employee ID</label><input id="empId" placeholder="e.g. TH-1234"></div>
+  <div id="homeView">
+    <div class="section-label">Spending Summary</div>
+    <div class="card summary-card">
+      <div class="summary-grand-label">Grand Total — All Months</div>
+      <div class="summary-grand-value" id="grandTotalDisplay">0.00 <small>THB</small></div>
+      <div class="summary-grand-sub" id="grandTotalSub"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="openSummary()">📊 View Monthly Breakdown</button>
     </div>
-    <div class="field"><label>Position / Job Title</label><input id="empPosition" placeholder="e.g. Project Engineer"></div>
-    <div class="field"><label>Reporting Month</label><input id="empMonth" type="month"></div>
+
+    <div class="section-label" id="entriesLabel">Expense Items</div>
+    <div id="entryList"></div>
+    <div class="empty" id="emptyState">No expense items yet — tap "Add Expense" to begin.</div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="openSheet()">＋ Add Expense</button>
+      <button class="btn btn-ghost" onclick="clearAll()">Clear This Month</button>
+    </div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openBulkAttach()">📎 Attach Statement to Multiple Items</button>
+
+    <div class="section-label">Monthly History</div>
+    <div id="historyList"></div>
+    <div class="empty" id="historyEmpty" style="display:none">No other months recorded yet.</div>
+
+    <div class="section-label">Submit for Approval</div>
+    <div class="btn-row" style="margin-top:0">
+      <button class="btn btn-primary btn-sm" onclick="sendApprovalEmail()" style="grid-column:1/-1">✉️ Send for Approval</button>
+    </div>
+    <div class="attach-status" style="margin-top:6px">Opens your email app with the subject/message ready — export the PDF first (🖨 button below) and attach it manually before sending.</div>
   </div>
 
-  <div class="section-label">Approval</div>
-  <div class="card">
-    <div class="field"><label>Approving Manager — Name</label><input id="mgrName" placeholder="Manager's full name"></div>
-    <div class="field"><label>Approving Manager — Position</label><input id="mgrPosition" placeholder="e.g. Operations Manager"></div>
-    <div class="field"><label>Approving Manager — Email</label><input id="mgrEmail" type="email" placeholder="manager@company.com"></div>
+  <div id="settingsView" style="display:none">
+    <div class="storage-note" id="storageNote"></div>
+
+    <div class="section-label">Employee Details</div>
+    <div class="card">
+      <div class="row2">
+        <div class="field"><label>Full Name</label><input id="empName" placeholder="First name, Last name"></div>
+        <div class="field"><label>Employee ID</label><input id="empId" placeholder="e.g. TH-1234"></div>
+      </div>
+      <div class="field"><label>Position / Job Title</label><input id="empPosition" placeholder="e.g. Project Engineer"></div>
+      <div class="field"><label>Reporting Month</label><input id="empMonth" type="month"></div>
+    </div>
+
+    <div class="section-label">Approval</div>
+    <div class="card">
+      <div class="field"><label>Approving Manager — Name</label><input id="mgrName" placeholder="Manager's full name"></div>
+      <div class="field"><label>Approving Manager — Position</label><input id="mgrPosition" placeholder="e.g. Operations Manager"></div>
+      <div class="field"><label>Approving Manager — Email</label><input id="mgrEmail" type="email" placeholder="manager@company.com"></div>
+    </div>
+
+    <div class="section-label">Storage Usage</div>
+    <div class="card">
+      <div class="storage-usage-text" id="storageUsageText">Checking…</div>
+      <div class="storage-usage-track"><div class="storage-usage-fill" id="storageUsageFill" style="width:0%"></div></div>
+    </div>
+
+    <div class="section-label">Data Backup</div>
+    <div class="field">
+      <label>Backup Year</label>
+      <select id="backupYearSelect"></select>
+    </div>
+    <div class="btn-row" style="margin-top:0">
+      <button class="btn btn-ghost btn-sm" onclick="exportBackup()">⬇ Back Up Selected Year</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importFile').click()">⬆ Restore Data</button>
+      <input type="file" id="importFile" accept=".json,application/json" style="display:none">
+    </div>
+    <div class="attach-status" style="margin-top:2px">Restoring only adds months that don't already exist on this device — it never overwrites or deletes existing data.</div>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV()" style="grid-column:1/-1">⬇ Export CSV (Selected Year)</button>
+    </div>
+    <div class="attach-status" style="margin-top:2px">Plain data export for spreadsheets or import into other systems (e.g. Salesforce) — one row per expense item, no images.</div>
   </div>
 
-  <div class="section-label">Spending Summary</div>
-  <div class="card summary-card">
-    <div class="summary-grand-label">Grand Total — All Months</div>
-    <div class="summary-grand-value" id="grandTotalDisplay">0.00 <small>THB</small></div>
-    <div class="summary-grand-sub" id="grandTotalSub"></div>
-    <button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="openSummary()">📊 View Monthly Breakdown</button>
-  </div>
-
-  <div class="section-label" id="entriesLabel">Expense Items</div>
-  <div id="entryList"></div>
-  <div class="empty" id="emptyState">No expense items yet — tap "Add Expense" to begin.</div>
-
-  <div class="btn-row">
-    <button class="btn btn-primary" onclick="openSheet()">＋ Add Expense</button>
-    <button class="btn btn-ghost" onclick="clearAll()">Clear This Month</button>
-  </div>
-
-  <div class="section-label">Monthly History</div>
-  <div id="historyList"></div>
-  <div class="empty" id="historyEmpty" style="display:none">No other months recorded yet.</div>
-
-  <div class="section-label">Submit for Approval</div>
-  <div class="btn-row" style="margin-top:0">
-    <button class="btn btn-primary btn-sm" onclick="sendApprovalEmail()" style="grid-column:1/-1">✉️ Send for Approval</button>
-  </div>
-  <div class="attach-status" style="margin-top:6px">Opens your email app with the subject/message ready — export the PDF first (🖨 button below) and attach it manually before sending.</div>
-
-  <div class="section-label">Storage Usage</div>
-  <div class="card">
-    <div class="storage-usage-text" id="storageUsageText">Checking…</div>
-    <div class="storage-usage-track"><div class="storage-usage-fill" id="storageUsageFill" style="width:0%"></div></div>
-  </div>
-
-  <div class="section-label">Data Backup</div>
-  <div class="field">
-    <label>Backup Year</label>
-    <select id="backupYearSelect"></select>
-  </div>
-  <div class="btn-row" style="margin-top:0">
-    <button class="btn btn-ghost btn-sm" onclick="exportBackup()">⬇ Back Up Selected Year</button>
-    <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importFile').click()">⬆ Restore Data</button>
-    <input type="file" id="importFile" accept=".json,application/json" style="display:none">
-  </div>
-  <div class="attach-status" style="margin-top:2px">Restoring only adds months that don't already exist on this device — it never overwrites or deletes existing data.</div>
-  <div class="btn-row" style="margin-top:10px">
-    <button class="btn btn-ghost btn-sm" onclick="exportCSV()" style="grid-column:1/-1">⬇ Export CSV (Selected Year)</button>
-  </div>
-  <div class="attach-status" style="margin-top:2px">Plain data export for spreadsheets or import into other systems (e.g. Salesforce) — one row per expense item, no images.</div>
   <div class="saved-note" id="savedNote"></div>
 </main>
 
@@ -492,6 +514,33 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   <div class="sheet">
     <h2><span>Use Receipt From…</span><button onclick="closeReceiptPicker()" aria-label="Close">✕</button></h2>
     <div id="receiptPickerList"></div>
+  </div>
+</div>
+
+<!-- Bulk attach: attach one month-end statement to many already-recorded items at once -->
+<div class="overlay" id="bulkAttachOverlay">
+  <div class="sheet">
+    <h2><span>Attach Statement to Multiple Items</span><button onclick="closeBulkAttach()" aria-label="Close">✕</button></h2>
+    <div class="field">
+      <label>Statement / Receipt Photo</label>
+      <input type="file" id="bulkReceiptFile" accept="image/*" style="display:none">
+      <div class="attach-zone" id="bulkAttachZone" onclick="document.getElementById('bulkReceiptFile').click()">
+        📷 <strong>Take photo / choose statement image</strong>
+      </div>
+      <div class="attach-preview" id="bulkAttachPreview">
+        <img id="bulkAttachImg" alt="Statement">
+        <button class="attach-remove" onclick="bulkRemovePhoto(event)">✕ Remove image</button>
+      </div>
+      <div class="attach-status" id="bulkAttachStatus"></div>
+    </div>
+    <div class="field">
+      <label>Select expense items this receipt covers <span class="manage-link" onclick="bulkSelectAll()">Select All</span></label>
+      <div id="bulkItemList"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeBulkAttach()">Cancel</button>
+      <button class="btn btn-primary" onclick="bulkAttachSubmit()">Attach to Selected</button>
+    </div>
   </div>
 </div>
 
@@ -721,6 +770,20 @@ document.addEventListener('click',ev=>{
 });
 
 /* ---------- init / load ---------- */
+let currentView='home';
+function toggleSettingsView(){
+  currentView=currentView==='home'?'settings':'home';
+  const isSettings=currentView==='settings';
+  document.getElementById('homeView').style.display=isSettings?'none':'block';
+  document.getElementById('settingsView').style.display=isSettings?'block':'none';
+  document.getElementById('headerNavBtn').textContent=isSettings?'←':'⚙️';
+  document.getElementById('headerNavBtn').setAttribute('aria-label',isSettings?'Back':'Settings');
+  document.getElementById('headerTitle').textContent=isSettings?'Settings':'Expense Reimbursement';
+  document.getElementById('headerTagline').textContent=isSettings
+    ?'Employee details, approval contact, backup & storage'
+    :'Original-quality receipts · Saved on this device · Export as formal PDF';
+  window.scrollTo(0,0);
+}
 async function init(){
   try{idb=await openIDB();
     await idbSet('kv','__t','1');await idbDel('kv','__t');
@@ -914,6 +977,91 @@ function selectReceiptLink(sourceEntryId){
   showAttachPreview(receipts[rid].url,true);
   document.getElementById('attachStatus').textContent='Linked to another entry — no extra storage used.';
   closeReceiptPicker();
+}
+
+/* ---------- bulk attach: one month-end statement → many already-recorded items ---------- */
+let bulkPendingReceipt=null;
+function openBulkAttach(){
+  if(state.entries.length===0){alert('No expense items in this month yet.');return;}
+  bulkPendingReceipt=null;
+  document.getElementById('bulkAttachPreview').style.display='none';
+  document.getElementById('bulkAttachZone').style.display='block';
+  document.getElementById('bulkAttachStatus').textContent='';
+  const list=document.getElementById('bulkItemList');
+  list.innerHTML=state.entries.map(e=>{
+    const already=hasAnyReceipt(e);
+    return`<label class="bulk-row">
+      <input type="checkbox" class="bulk-item-checkbox" value="${e.id}" ${already?'':'checked'}>
+      <div class="bulk-row-body">
+        <div class="bulk-row-desc">${esc(e.desc)||'(No description)'}</div>
+        <div class="bulk-row-meta">${fmtDateShort(e.date)} · ${THB(e.amount)} THB${already?' <span class="bulk-row-existing">· will replace existing receipt</span>':''}</div>
+      </div>
+    </label>`;
+  }).join('');
+  document.getElementById('bulkAttachOverlay').classList.add('open');
+}
+function closeBulkAttach(){document.getElementById('bulkAttachOverlay').classList.remove('open');}
+function bulkSelectAll(){
+  const boxes=document.querySelectorAll('.bulk-item-checkbox');
+  const allChecked=[...boxes].every(b=>b.checked);
+  boxes.forEach(b=>{b.checked=!allChecked;});
+}
+document.getElementById('bulkReceiptFile').addEventListener('change',async ev=>{
+  const file=ev.target.files[0];
+  if(!file)return;
+  const status=document.getElementById('bulkAttachStatus');
+  try{
+    if(MODE==='idb'){
+      bulkPendingReceipt={blob:file,url:URL.createObjectURL(file)};
+      status.textContent='Original quality · '+fmtKB(file.size);
+    }else{
+      status.textContent='Resizing image…';
+      const cap=MODE==='claude'?3500000:450000;
+      const maxDim=MODE==='claude'?1600:1100;
+      const dataUrl=await compressImage(file,maxDim,cap);
+      bulkPendingReceipt={dataUrl,url:dataUrl};
+      status.textContent='Resized to ~'+fmtKB(dataUrl.length*0.75);
+    }
+    document.getElementById('bulkAttachImg').src=bulkPendingReceipt.url;
+    document.getElementById('bulkAttachPreview').style.display='block';
+    document.getElementById('bulkAttachZone').style.display='none';
+  }catch(e){status.textContent='Could not read image — please try again.';}
+  ev.target.value='';
+});
+function bulkRemovePhoto(ev){
+  ev.stopPropagation();
+  bulkPendingReceipt=null;
+  document.getElementById('bulkAttachPreview').style.display='none';
+  document.getElementById('bulkAttachZone').style.display='block';
+  document.getElementById('bulkAttachStatus').textContent='';
+}
+async function bulkAttachSubmit(){
+  if(!bulkPendingReceipt){alert('Please choose the statement photo first.');return;}
+  const checked=[...document.querySelectorAll('.bulk-item-checkbox:checked')].map(cb=>cb.value);
+  if(checked.length===0){alert('Please select at least one expense item this receipt covers.');return;}
+  const ownerEntry=state.entries.find(x=>x.id===checked[0]);
+  if(!ownerEntry)return;
+  try{
+    if(ownerEntry.hasReceipt)await releaseReceiptOwnership(ownerEntry.id);
+    await rstore.set(ownerEntry.id,bulkPendingReceipt.blob||bulkPendingReceipt.dataUrl);
+    receipts[ownerEntry.id]=bulkPendingReceipt;
+    ownerEntry.hasReceipt=true;
+    ownerEntry.receiptRef=null;
+    for(const id of checked.slice(1)){
+      const x=state.entries.find(e=>e.id===id);
+      if(!x)continue;
+      if(x.hasReceipt)await releaseReceiptOwnership(x.id);
+      x.hasReceipt=false;
+      x.receiptRef=ownerEntry.id;
+    }
+  }catch(err){
+    alert('Could not save the statement image (storage may be full).');
+    closeBulkAttach();
+    return;
+  }
+  persist();render();
+  closeBulkAttach();
+  noteMsg(`✓ Receipt attached to ${checked.length} item(s)`);
 }
 
 /* ---------- sheet ---------- */
