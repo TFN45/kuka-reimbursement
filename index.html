@@ -418,11 +418,14 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   .pp-line span{border-bottom:1px dotted #000;flex:1;margin-left:6px;padding:0 4px}
   table.pp{width:100%;border-collapse:collapse;margin-top:10px;font-size:9.5pt}
   table.pp th,table.pp td{border:1px solid #000;padding:3px 5px;vertical-align:top}
+  table.pp thead{display:table-header-group}
+  table.pp tr{page-break-inside:avoid;break-inside:avoid}
   table.pp th{background:#eee;font-weight:600;text-align:center}
   table.pp td.c{text-align:center}
   table.pp td.r{text-align:right;font-family:'IBM Plex Mono',monospace}
   .pp-total td{font-weight:700}
-  .pp-decl{font-size:9pt;color:#222;margin-top:12px;line-height:1.45}
+  .pp-cert-block{page-break-inside:avoid;break-inside:avoid;margin-top:12px}
+  .pp-decl{font-size:9pt;color:#222;line-height:1.45}
   .pp-sign{display:flex;justify-content:space-between;margin-top:32px;font-size:10.5pt}
   .pp-sign div{text-align:center;width:45%}
   .pp-sign .sig-line{border-bottom:1px dotted #000;height:32px;margin-bottom:4px}
@@ -1965,6 +1968,7 @@ function buildPrint(total){
     <div class="pp-line"><b>Employee Name:</b><span>${esc(state.emp.name)}</span><b style="margin-left:12px">Employee ID:</b><span style="max-width:26%">${esc(state.emp.id)}</span></div>
     ${state.emp.position?`<div class="pp-line"><b>Position / Job Title:</b><span>${esc(state.emp.position)}</span></div>`:''}
     <table class="pp">
+      <thead>
       <tr>
         <th style="width:4%">No.</th>
         <th style="width:10%">Date</th>
@@ -1974,26 +1978,31 @@ function buildPrint(total){
         <th style="width:9%">Receipt Attached</th>
         <th style="width:14%">Amount (THB)</th>
       </tr>
+      </thead>
+      <tbody>
       ${rows}
       <tr class="pp-total"><td colspan="6" class="c">Total Amount Claimed</td><td class="r">${THB(total)}</td></tr>
+      </tbody>
     </table>
-    <div class="pp-decl">
-      I hereby certify that the expenses listed above were incurred by me in the course of company business,
-      that they are accurate and complete to the best of my knowledge, and that original receipts are attached
-      as supporting documentation where indicated.
-    </div>
-    <div class="pp-sign">
-      <div>
-        <div class="sig-line"></div>
-        <div class="sig-role">${esc(state.emp.name)||'Employee Signature'}</div>
-        ${state.emp.position?`<div class="sig-date">${esc(state.emp.position)}</div>`:''}
-        <div class="sig-date">Date: ............./............./..............</div>
+    <div class="pp-cert-block">
+      <div class="pp-decl">
+        I hereby certify that the expenses listed above were incurred by me in the course of company business,
+        that they are accurate and complete to the best of my knowledge, and that original receipts are attached
+        as supporting documentation where indicated.
       </div>
-      <div>
-        <div class="sig-line"></div>
-        <div class="sig-role">${esc(state.emp.mgrName)||'Approved by (Manager)'}</div>
-        ${state.emp.mgrPosition?`<div class="sig-date">${esc(state.emp.mgrPosition)}</div>`:'<div class="sig-date">Manager</div>'}
-        <div class="sig-date">Date: ............./............./..............</div>
+      <div class="pp-sign">
+        <div>
+          <div class="sig-line"></div>
+          <div class="sig-role">${esc(state.emp.name)||'Employee Signature'}</div>
+          ${state.emp.position?`<div class="sig-date">${esc(state.emp.position)}</div>`:''}
+          <div class="sig-date">Date: ............./............./..............</div>
+        </div>
+        <div>
+          <div class="sig-line"></div>
+          <div class="sig-role">${esc(state.emp.mgrName)||'Approved by (Manager)'}</div>
+          ${state.emp.mgrPosition?`<div class="sig-date">${esc(state.emp.mgrPosition)}</div>`:'<div class="sig-date">Manager</div>'}
+          <div class="sig-date">Date: ............./............./..............</div>
+        </div>
       </div>
     </div>
     ${receiptPages}`;
