@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>KUKA OS — Expense Reimbursement Form</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1B1D20">
+<meta name="theme-color" content="#000000">
 <link rel="icon" href="icon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -24,7 +24,7 @@
   --ink-3:#9AA0A6;
   --bg:#F2F2F0;
   --card:#FFFFFF;
-  --surface-2:var(--surface-2);
+  --surface-2:#FAFAF8;
   --line:#E6E6E2;
   --ok:#0E8A4D;
   --danger:#D64545;
@@ -866,7 +866,7 @@ try{
       <div class="t-label">TOTAL</div>
       <div class="t-value" id="totalDisplay">0.00 <small>THB</small></div>
     </div>
-    <button onclick="window.print()">🖨 Export PDF</button>
+    <button onclick="exportPDF()">🖨 Export PDF</button>
   </div>
 </div>
 
@@ -1370,6 +1370,21 @@ document.addEventListener('click',ev=>{
   if(!ev.target.closest('#otProvinceWrapEl')){
     const opl=document.getElementById('otProvinceListEl');
     if(opl)opl.classList.remove('open');
+  }
+});
+document.addEventListener('keydown',ev=>{
+  if(ev.key!=='Escape')return;
+  const closers=[
+    ['overlay',closeSheet],
+    ['receiptPickerOverlay',closeReceiptPicker],
+    ['bulkAttachOverlay',closeBulkAttach],
+    ['otOverlay',closeOTSheet],
+    ['summaryOverlay',closeSummary],
+    ['viewer',closeViewer]
+  ];
+  for(const[id,fn]of closers){
+    const el=document.getElementById(id);
+    if(el&&el.classList.contains('open')){fn();return;}
   }
 });
 
@@ -3343,17 +3358,28 @@ window.addEventListener('beforeprint',()=>{
   autoFitPrintLines('printPage');
   autoFitPrintLines('otPrintPage');
 });
+const DEFAULT_TITLE=document.title;
+function exportPDF(){
+  const period=monthLabel(state.emp.month)||'';
+  document.title='Expense Reimbursement Form (KUKA OS)'+(period?' — '+period:'');
+  window.print();
+  setTimeout(()=>{document.title=DEFAULT_TITLE;},1000);
+}
 function exportOTPDF(){
   document.body.classList.add('printing-ot');
+  const period=monthLabel(state.emp.otMonth)||'';
+  document.title='OT Approval Form (KUKA OS)'+(period?' — '+period:'');
   window.print();
-  setTimeout(()=>document.body.classList.remove('printing-ot'),1000);
+  setTimeout(()=>{
+    document.body.classList.remove('printing-ot');
+    document.title=DEFAULT_TITLE;
+  },1000);
 }
 function sendOTApprovalEmail(){
   const sum1x=state.otEntries.reduce((s,e)=>s+(e.ot1x||0),0);
   const sum15x=state.otEntries.reduce((s,e)=>s+(e.ot15x||0),0);
   const sum3x=state.otEntries.reduce((s,e)=>s+(e.ot3x||0),0);
   const sumCustom=state.otEntries.reduce((s,e)=>s+(e.otCustom||0),0);
-  const totalPay=state.otEntries.reduce((s,e)=>s+calcOTPay(e),0);
   const period=monthLabel(state.emp.otMonth)||'(period not set)';
   const subject=`OT Approval Form (KUKA OS) — ${period}`;
   const bodyLines=[
@@ -3367,7 +3393,6 @@ function sendOTApprovalEmail(){
     `Reporting Month: ${period}`,
     `Total Entries: ${state.otEntries.length}`,
     `OT Hours — 1×: ${sum1x.toFixed(2)} hrs, 1.5×: ${sum15x.toFixed(2)} hrs, 3×: ${sum3x.toFixed(2)} hrs`+(sumCustom?`, Other: ${sumCustom.toFixed(2)} hrs`:''),
-    totalPay>0?`Estimated OT Pay: THB ${THB(totalPay)}`:null,
     '',
     'The OT approval form (PDF) is attached to this email.',
     '',

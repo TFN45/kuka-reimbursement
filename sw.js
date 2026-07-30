@@ -16,13 +16,17 @@ self.addEventListener('fetch',e=>{
   const isAppShell=e.request.mode==='navigate'||e.request.destination==='document'||e.request.url.endsWith('index.html')||e.request.url.endsWith('/');
   if(isAppShell){
     // Network-first: always try to get the latest version when online.
-    // Falls back to the cached copy only when offline.
+    // Falls back to the cached copy only when offline — and if the exact
+    // requested URL was never cached (e.g. a bare '/'), fall back to the
+    // app shell entry itself rather than failing outright.
     e.respondWith(
       fetch(e.request).then(res=>{
         const copy=res.clone();
         caches.open(CACHE).then(c=>c.put(e.request,copy));
         return res;
-      }).catch(()=>caches.match(e.request))
+      }).catch(()=>
+        caches.match(e.request).then(cached=>cached||caches.match('./index.html'))
+      )
     );
     return;
   }
