@@ -291,6 +291,10 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:.95rem;
   white-space:nowrap;margin-top:5px;
 }
+.entry-amt-thb{
+  font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:.85rem;
+  color:var(--kuka-dark);white-space:nowrap;margin-top:2px;
+}
 .entry-thumb{
   margin-top:9px;display:inline-flex;align-items:center;gap:7px;
   border:1px solid var(--line);border-radius:9px;padding:4px 10px 4px 4px;
@@ -360,7 +364,8 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
 .history-row.active{border-color:var(--kuka);background:var(--kuka-soft)}
 .history-name{font-weight:600;font-size:.9rem}
 .history-meta{font-size:.75rem;color:var(--ink-2);margin-top:2px}
-.history-amt{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:.9rem;white-space:nowrap}
+.history-amt{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:.9rem;white-space:nowrap;text-align:right}
+.history-amt-sub{font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--kuka-dark);white-space:nowrap;text-align:right;margin-top:1px}
 
 /* ===== Spending summary ===== */
 .summary-card{text-align:center}
@@ -588,8 +593,8 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   .pp-total td{font-weight:700}
   .pp-cert-block{page-break-inside:avoid;break-inside:avoid;margin-top:12px}
   .pp-decl{font-size:9pt;color:#222;line-height:1.45}
-  .pp-sign{display:flex;justify-content:space-between;margin-top:32px;font-size:10.5pt}
-  .pp-sign div{text-align:center;width:45%}
+  .pp-sign{display:grid;grid-template-columns:1fr 1fr;column-gap:32px;margin-top:32px;font-size:10.5pt}
+  .pp-sign>div{text-align:center;min-width:0}
   .pp-sign .sig-line{border-bottom:1px dotted #000;height:52px;margin-bottom:4px}
   .sig-img-wrap{border-bottom:1px dotted #000;height:52px;margin-bottom:4px;display:flex;align-items:flex-end;justify-content:center}
   .sig-img{max-height:50px;max-width:85%}
@@ -691,6 +696,7 @@ try{
       <div class="ot-summary-row"><span>OT 1.5×</span><b id="otSum15x">0.00 hrs</b></div>
       <div class="ot-summary-row"><span>OT 3×</span><b id="otSum3x">0.00 hrs</b></div>
       <div class="ot-summary-row" id="otSumOtherRow" style="display:none"><span>Other (custom rate)</span><b id="otSumOther">0.00 hrs</b></div>
+      <div class="ot-summary-row" id="otSumPayRow" style="display:none"><span>Estimated OT Pay</span><b id="otSumPay">0.00 THB</b></div>
     </div>
 
     <div class="section-label">OT Entries</div>
@@ -736,7 +742,8 @@ try{
         <div class="field"><label>Standard Check-Out</label><input id="otStdCheckOut" type="time"></div>
       </div>
       <div class="field"><label>Break Minutes / Day</label><input id="otBreakMinutes" type="number" step="5" min="0" placeholder="60"></div>
-      <div class="field-note" style="margin-bottom:0">Used to auto-calculate OT hours and to pre-fill new OT entries. Verify results match your company's OT policy before submitting.</div>
+      <div class="field"><label>Base Monthly Salary (THB)</label><input id="otBaseSalary" type="number" step="100" min="0" placeholder="e.g. 30000"></div>
+      <div class="field-note" style="margin-bottom:0">Used to auto-calculate OT hours, and to estimate OT pay (based on a 30-day month). Verify results match your company's OT policy before submitting.</div>
     </div>
 
     <div class="section-label">My Signature</div>
@@ -1418,7 +1425,7 @@ async function load(){
   try{
     const pv=await kv.get(PKEY);
     if(pv){const p=JSON.parse(pv);
-      ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes'].forEach(k=>{if(!state.emp[k]&&p[k])state.emp[k]=p[k];});
+      ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes','otBaseSalary'].forEach(k=>{if(!state.emp[k]&&p[k])state.emp[k]=p[k];});
       if(!state.emp.descPresets&&Array.isArray(p.descPresets))state.emp.descPresets=p.descPresets;
       if(!state.emp.locPresets&&Array.isArray(p.locPresets))state.emp.locPresets=p.locPresets;
     }
@@ -1446,6 +1453,7 @@ async function load(){
   document.getElementById('otStdCheckIn').value=state.emp.otStdCheckIn||'09:00';
   document.getElementById('otStdCheckOut').value=state.emp.otStdCheckOut||'18:00';
   document.getElementById('otBreakMinutes').value=state.emp.otBreakMinutes!==undefined?state.emp.otBreakMinutes:60;
+  document.getElementById('otBaseSalary').value=state.emp.otBaseSalary||'';
   document.getElementById('mgrName').value=state.emp.mgrName||'';
   document.getElementById('mgrPosition').value=state.emp.mgrPosition||'';
   document.getElementById('mgrEmail').value=state.emp.mgrEmail||'';
@@ -1476,7 +1484,7 @@ let profTimer=null;
 function persistProfile(){
   clearTimeout(profTimer);
   profTimer=setTimeout(()=>{
-    kv.set(PKEY,JSON.stringify({name:state.emp.name,id:state.emp.id,position:state.emp.position,workLocation:state.emp.workLocation,mgrName:state.emp.mgrName,mgrPosition:state.emp.mgrPosition,mgrEmail:state.emp.mgrEmail,descPresets:state.emp.descPresets,locPresets:state.emp.locPresets,signature:state.emp.signature,mileageRate:state.emp.mileageRate,otStdCheckIn:state.emp.otStdCheckIn,otStdCheckOut:state.emp.otStdCheckOut,otBreakMinutes:state.emp.otBreakMinutes})).catch(()=>{});
+    kv.set(PKEY,JSON.stringify({name:state.emp.name,id:state.emp.id,position:state.emp.position,workLocation:state.emp.workLocation,mgrName:state.emp.mgrName,mgrPosition:state.emp.mgrPosition,mgrEmail:state.emp.mgrEmail,descPresets:state.emp.descPresets,locPresets:state.emp.locPresets,signature:state.emp.signature,mileageRate:state.emp.mileageRate,otStdCheckIn:state.emp.otStdCheckIn,otStdCheckOut:state.emp.otStdCheckOut,otBreakMinutes:state.emp.otBreakMinutes,otBaseSalary:state.emp.otBaseSalary})).catch(()=>{});
   },600);
 }
 ['empName','empId','empPosition','workLocation','mgrName','mgrPosition','mgrEmail'].forEach(id=>{
@@ -1492,6 +1500,9 @@ function persistProfile(){
 });
 document.getElementById('otBreakMinutes').addEventListener('input',e=>{
   state.emp.otBreakMinutes=parseFloat(e.target.value)||0;persist();persistProfile();
+});
+document.getElementById('otBaseSalary').addEventListener('input',e=>{
+  state.emp.otBaseSalary=parseFloat(e.target.value)||0;persist();persistProfile();
 });
 document.getElementById('otMonthInput').addEventListener('input',e=>{
   const newRaw=e.target.value;
@@ -2338,7 +2349,7 @@ document.getElementById('importFile').addEventListener('change',ev=>{
       msg+='\nContinue?';
       if(!confirm(msg))return;
       if(p.state&&p.state.emp){
-        ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes'].forEach(k=>{
+        ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes','otBaseSalary'].forEach(k=>{
           if(!state.emp[k]&&p.state.emp[k])state.emp[k]=p.state.emp[k];
         });
         if(Array.isArray(p.state.emp.descPresets)){
@@ -2409,6 +2420,7 @@ document.getElementById('importFile').addEventListener('change',ev=>{
       document.getElementById('otStdCheckIn').value=state.emp.otStdCheckIn||'09:00';
   document.getElementById('otStdCheckOut').value=state.emp.otStdCheckOut||'18:00';
       document.getElementById('otBreakMinutes').value=state.emp.otBreakMinutes!==undefined?state.emp.otBreakMinutes:60;
+  document.getElementById('otBaseSalary').value=state.emp.otBaseSalary||'';
       document.getElementById('mgrName').value=state.emp.mgrName||'';
       document.getElementById('mgrPosition').value=state.emp.mgrPosition||'';
       document.getElementById('mgrEmail').value=state.emp.mgrEmail||'';
@@ -2812,6 +2824,21 @@ function getOTStandardHours(){
   mins-=Number(state.emp.otBreakMinutes)||0;
   return Math.max(0,mins/60);
 }
+function getOTHourlyRate(){
+  const salary=Number(state.emp.otBaseSalary)||0;
+  const stdHours=getOTStandardHours();
+  if(salary<=0||stdHours<=0)return 0;
+  return(salary/30)/stdHours;
+}
+function calcOTPay(e){
+  const rate=getOTHourlyRate();
+  if(rate<=0)return 0;
+  const pay=(e.ot1x||0)*rate*1
+    +(e.ot15x||0)*rate*1.5
+    +(e.ot3x||0)*rate*3
+    +(e.otCustom||0)*rate*(e.customRate||0);
+  return Math.round(pay*100)/100;
+}
 function calcOTHours(timeIn,timeOut,dayType,customRate){
   if(!timeIn||!timeOut)return{ot1x:0,ot15x:0,ot3x:0,otCustom:0,totalHours:0};
   const[inH,inM]=timeIn.split(':').map(Number);
@@ -3065,6 +3092,7 @@ function renderOT(){
   list.innerHTML='';
   document.getElementById('otEmptyState').style.display=state.otEntries.length?'none':'block';
   const dayTypeLabel={normal:'Normal',weekly_holiday:'Weekly Holiday',public_holiday:'Public Holiday',custom:'Other'};
+  const hourlyRate=getOTHourlyRate();
   state.otEntries.forEach((e,i)=>{
     const div=document.createElement('div');
     div.className='entry';
@@ -3074,6 +3102,7 @@ function renderOT(){
       e.ot3x?e.ot3x.toFixed(2)+'h @3×':'',
       e.otCustom?e.otCustom.toFixed(2)+'h @'+(e.customRate||'?')+'×':''
     ].filter(Boolean);
+    const payLine=hourlyRate>0?`<div class="entry-amt-thb">${THB(calcOTPay(e))} THB</div>`:'';
     div.innerHTML=`
       <div class="entry-date">${fmtDateShort(e.date)}</div>
       <div class="entry-body">
@@ -3084,6 +3113,7 @@ function renderOT(){
         ${e.location?`<div class="entry-purpose">📍 ${esc(otLocationDisplay(e.location))}</div>`:''}
         ${e.details?`<div class="entry-purpose">${esc(e.details)}</div>`:''}
         <div class="entry-amt">${hrsParts.length?hrsParts.join(' · '):'0.00h (no OT)'}</div>
+        ${payLine}
       </div>
       <div class="entry-actions">
         <button class="icon-btn" onclick="openOTSheet(${i})" aria-label="Edit">✎</button>
@@ -3105,6 +3135,14 @@ function renderOT(){
   }else{
     otherRow.style.display='none';
   }
+  const payRow=document.getElementById('otSumPayRow');
+  if(hourlyRate>0){
+    const totalPay=state.otEntries.reduce((s,e)=>s+calcOTPay(e),0);
+    payRow.style.display='flex';
+    document.getElementById('otSumPay').textContent=THB(totalPay)+' THB';
+  }else{
+    payRow.style.display='none';
+  }
   document.getElementById('otTotalDisplay').innerHTML=(sum1x+sum15x+sum3x+sumCustom).toFixed(2)+' <small>hrs</small>';
   renderOTHistory();
   buildOTPrint();
@@ -3116,14 +3154,16 @@ function renderOTHistory(){
   document.getElementById('otHistoryEmpty').style.display=keys.length?'none':'block';
   keys.sort((a,b)=>{if(a==='_unspecified')return 1;if(b==='_unspecified')return-1;return b.localeCompare(a);});
   wrap.innerHTML='';
+  const hourlyRate=getOTHourlyRate();
   keys.forEach(k=>{
     const items=state.otMonths[k];
     const totalHrs=items.reduce((s,e)=>s+(e.ot1x||0)+(e.ot15x||0)+(e.ot3x||0)+(e.otCustom||0),0);
     const label=k==='_unspecified'?'(No month set)':(monthLabel(k)||k);
+    const payLine=hourlyRate>0?`<div class="history-amt-sub">≈ ${THB(items.reduce((s,e)=>s+calcOTPay(e),0))} THB</div>`:'';
     const div=document.createElement('div');
     div.className='history-row';
     div.onclick=()=>otJumpToMonth(k);
-    div.innerHTML=`<div><div class="history-name">${esc(label)}</div><div class="history-meta">${items.length} entr${items.length!==1?'ies':'y'}</div></div><div class="history-amt">${totalHrs.toFixed(2)} hrs</div>`;
+    div.innerHTML=`<div><div class="history-name">${esc(label)}</div><div class="history-meta">${items.length} entr${items.length!==1?'ies':'y'}</div></div><div><div class="history-amt">${totalHrs.toFixed(2)} hrs</div>${payLine}</div>`;
     wrap.appendChild(div);
   });
 }
@@ -3233,6 +3273,7 @@ function sendOTApprovalEmail(){
   const sum15x=state.otEntries.reduce((s,e)=>s+(e.ot15x||0),0);
   const sum3x=state.otEntries.reduce((s,e)=>s+(e.ot3x||0),0);
   const sumCustom=state.otEntries.reduce((s,e)=>s+(e.otCustom||0),0);
+  const totalPay=state.otEntries.reduce((s,e)=>s+calcOTPay(e),0);
   const period=monthLabel(state.emp.otMonth)||'(period not set)';
   const subject=`OT Approval Form (KUKA OS) — ${period}`;
   const bodyLines=[
@@ -3246,6 +3287,7 @@ function sendOTApprovalEmail(){
     `Reporting Month: ${period}`,
     `Total Entries: ${state.otEntries.length}`,
     `OT Hours — 1×: ${sum1x.toFixed(2)} hrs, 1.5×: ${sum15x.toFixed(2)} hrs, 3×: ${sum3x.toFixed(2)} hrs`+(sumCustom?`, Other: ${sumCustom.toFixed(2)} hrs`:''),
+    totalPay>0?`Estimated OT Pay: THB ${THB(totalPay)}`:null,
     '',
     'The OT approval form (PDF) is attached to this email.',
     '',
