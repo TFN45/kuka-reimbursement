@@ -2729,6 +2729,7 @@ function buildPrint(total){
     </div>
     <div class="pp-line"><b>Employee Name:</b><span>${esc(state.emp.name)}</span><b style="margin-left:12px">Employee ID:</b><span style="max-width:26%">${esc(state.emp.id)}</span></div>
     ${state.emp.position?`<div class="pp-line"><b>Position / Job Title:</b><span>${esc(state.emp.position)}</span></div>`:''}
+    ${state.emp.workLocation?`<div class="pp-line"><b>Work Location:</b><span>${esc(state.emp.workLocation)}</span></div>`:''}
     <table class="pp">
       <thead>
       <tr>
