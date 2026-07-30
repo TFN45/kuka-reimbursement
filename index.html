@@ -798,8 +798,8 @@ try{
         <div class="field"><label>Standard Check-In</label><input id="otStdCheckIn" type="time"></div>
         <div class="field"><label>Standard Check-Out</label><input id="otStdCheckOut" type="time"></div>
       </div>
-      <div class="field"><label>Break Minutes / Day</label><input id="otBreakMinutes" type="number" step="5" min="0" placeholder="60"></div>
-      <div class="field"><label>Base Monthly Salary (THB)</label><input id="otBaseSalary" type="number" step="100" min="0" placeholder="e.g. 30000"></div>
+      <div class="field"><label>Break Minutes / Day</label><input id="otBreakMinutes" type="number" inputmode="decimal" step="5" min="0" placeholder="60"></div>
+      <div class="field"><label>Base Monthly Salary (THB)</label><input id="otBaseSalary" type="number" inputmode="decimal" step="100" min="0" placeholder="e.g. 30000"></div>
       <div class="field-note" style="margin-bottom:0">Used to auto-calculate OT hours, and to estimate OT pay (based on a 30-day month). Verify results match your company's OT policy before submitting.</div>
     </div>
 
@@ -954,7 +954,7 @@ try{
 </div>
 
 <!-- Receipt picker: link to another entry's receipt instead of uploading a duplicate -->
-<div class="overlay" id="receiptPickerOverlay">
+<div class="overlay" id="receiptPickerOverlay" onclick="if(event.target===this)closeReceiptPicker()">
   <div class="sheet">
     <h2><span>Use Receipt From…</span><button onclick="closeReceiptPicker()" aria-label="Close">✕</button></h2>
     <div id="receiptPickerList"></div>
@@ -1008,7 +1008,7 @@ try{
     </div>
     <div class="field" id="otCustomRateField" style="display:none">
       <label>Custom Multiplier (×)</label>
-      <input id="otCustomRate" type="number" step="0.1" min="0" placeholder="e.g. 2" oninput="updateOTCalcPreview()">
+      <input id="otCustomRate" type="number" inputmode="decimal" step="0.1" min="0" placeholder="e.g. 2" oninput="updateOTCalcPreview()">
     </div>
     <div class="ot-calc-preview" id="otCalcPreview">Enter check-in/out to calculate</div>
     <div class="field-note" style="margin:6px 0 0">Auto-calculated from your Check-In/Check-Out and Break settings — please verify this matches your company's OT policy.</div>
@@ -1036,7 +1036,7 @@ try{
 </div>
 
 <!-- Spending summary modal -->
-<div class="overlay" id="summaryOverlay">
+<div class="overlay" id="summaryOverlay" onclick="if(event.target===this)closeSummary()">
   <div class="sheet" style="max-height:88vh">
     <h2><span>Spending Summary</span><button onclick="closeSummary()" aria-label="Close">✕</button></h2>
     <div id="summaryModalGrand"></div>
