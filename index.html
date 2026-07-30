@@ -73,8 +73,9 @@ header{
   box-shadow:0 1px 0 rgba(255,255,255,.04), 0 4px 16px rgba(0,0,0,.18);
 }
 .brand{display:flex;align-items:center;gap:10px;margin-bottom:3px}
+.header-nav-wrap{margin-left:auto;display:flex;gap:8px;flex-shrink:0}
 .header-nav-btn{
-  margin-left:auto;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.12);
   color:#fff;width:38px;height:38px;border-radius:var(--r-sm);font-size:1.05rem;cursor:pointer;
   display:flex;align-items:center;justify-content:center;flex-shrink:0;
   transition:background .15s ease;
@@ -430,6 +431,24 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:1.1rem;
   color:var(--kuka-dark);margin-top:4px;
 }
+.daytype-row{display:flex;flex-wrap:wrap;gap:6px}
+.daytype-btn{
+  flex:1;min-width:100px;font-family:inherit;font-size:.78rem;font-weight:600;
+  padding:10px 8px;border-radius:var(--r-sm);border:1.5px solid var(--line);
+  background:var(--surface-2);color:var(--ink-2);cursor:pointer;text-align:center;
+}
+.daytype-btn.active{background:var(--kuka);border-color:var(--kuka);color:#fff}
+.ot-calc-preview{
+  background:var(--kuka-soft);border:1px solid var(--kuka-border);border-radius:var(--r-sm);
+  padding:11px 12px;text-align:center;font-size:.85rem;font-weight:600;color:var(--kuka-dark);
+  margin-top:12px;
+}
+.ot-summary-row{
+  display:flex;justify-content:space-between;align-items:center;padding:7px 0;
+  font-size:.88rem;color:var(--ink-2);border-bottom:1px solid var(--line);
+}
+.ot-summary-row:last-child{border-bottom:none}
+.ot-summary-row b{color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:.92rem}
 .extra-receipt-grid{
   display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;
 }
@@ -535,10 +554,13 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
 
 /* ===== Print: formal English corporate layout ===== */
 .printpage{display:none}
+.ot-printpage{display:none}
 @media print{
   body{background:#fff;padding:0}
-  header,main,.totalbar,.overlay,.viewer{display:none !important}
+  header,main,.totalbar,.ot-totalbar,.overlay,.viewer{display:none !important}
   .printpage{display:block;font-family:'Noto Sans Thai',Arial,sans-serif;color:#000;font-size:11pt}
+  body.printing-ot .printpage{display:none !important}
+  body.printing-ot .ot-printpage{display:block !important;font-family:'Noto Sans Thai',Arial,sans-serif;color:#000;font-size:10.5pt}
   .pp-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:12px}
   .pp-head .pp-org{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:10pt;letter-spacing:.08em}
   .pp-title{font-weight:700;font-size:13.5pt}
@@ -566,6 +588,15 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   .pp-receipt{page-break-before:always;text-align:center}
   .pp-receipt h3{font-size:11pt;font-weight:600;margin-bottom:8px;text-align:left}
   .pp-receipt img{max-width:100%;max-height:225mm;border:1px solid #999}
+
+  /* --- OT form (bilingual Thai/English, matches company template) --- */
+  .otp-title{text-align:center;font-weight:700;font-size:13pt;margin-bottom:10px}
+  table.otp-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:8pt}
+  table.otp-table th,table.otp-table td{border:1px solid #000;padding:3px 4px;vertical-align:middle;text-align:center}
+  table.otp-table thead{display:table-header-group}
+  table.otp-table th{background:#eee;font-weight:600}
+  table.otp-table tr{page-break-inside:avoid;break-inside:avoid}
+  table.otp-table td.l{text-align:left}
 }
 </style>
 <script>
@@ -581,7 +612,10 @@ try{
   <div class="brand">
     <span class="brand-mark">KUKA OS</span>
     <h1 id="headerTitle">Expense Reimbursement</h1>
-    <button class="header-nav-btn" id="headerNavBtn" onclick="toggleSettingsView()" aria-label="Settings">⚙️</button>
+    <div class="header-nav-wrap" id="headerNavWrap">
+      <button class="header-nav-btn" onclick="setView('ot')" aria-label="Overtime">🕐</button>
+      <button class="header-nav-btn" onclick="setView('settings')" aria-label="Settings">⚙️</button>
+    </div>
   </div>
   <p id="headerTagline">Original-quality receipts · Saved on this device · Export as formal PDF</p>
 </header>
@@ -631,6 +665,42 @@ try{
     <div class="attach-status" style="margin-top:6px">Opens your email app with the message ready — export the PDF first, then attach it manually before sending.</div>
   </div>
 
+  <div id="otView" style="display:none">
+    <div class="month-switcher">
+      <div class="month-switcher-label">OT Reporting Month</div>
+      <div class="month-switcher-row">
+        <button class="month-nav" onclick="otStepMonth(-1)" aria-label="Previous month">‹</button>
+        <input id="otMonthInput" type="month">
+        <button class="month-nav" onclick="otStepMonth(1)" aria-label="Next month">›</button>
+      </div>
+    </div>
+
+    <div class="section-label">OT Summary</div>
+    <div class="card">
+      <div class="ot-summary-row"><span>OT 1×</span><b id="otSum1x">0.00 hrs</b></div>
+      <div class="ot-summary-row"><span>OT 1.5×</span><b id="otSum15x">0.00 hrs</b></div>
+      <div class="ot-summary-row"><span>OT 3×</span><b id="otSum3x">0.00 hrs</b></div>
+      <div class="ot-summary-row" id="otSumOtherRow" style="display:none"><span>Other (custom rate)</span><b id="otSumOther">0.00 hrs</b></div>
+    </div>
+
+    <div class="section-label">OT Entries</div>
+    <div id="otEntryList"></div>
+    <div class="empty" id="otEmptyState">No OT entries yet — tap "Add OT Entry" to begin.</div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="openOTSheet()">＋ Add OT Entry</button>
+      <button class="btn btn-ghost" onclick="clearOTMonth()">Clear This Month</button>
+    </div>
+
+    <div class="section-label">OT Monthly History</div>
+    <div id="otHistoryList"></div>
+    <div class="empty" id="otHistoryEmpty" style="display:none">No other months recorded yet.</div>
+
+    <div class="section-label">Submit for Approval</div>
+    <button class="btn btn-primary btn-sm" style="width:100%" onclick="sendOTApprovalEmail()">✉️ Send for Approval</button>
+    <div class="attach-status" style="margin-top:6px">Opens your email app with the message ready — export the PDF first, then attach it manually before sending.</div>
+  </div>
+
   <div id="settingsView" style="display:none">
     <div class="section-label">Employee Details</div>
     <div class="card">
@@ -639,6 +709,7 @@ try{
         <div class="field"><label>Employee ID</label><input id="empId" placeholder="e.g. TH-1234"></div>
       </div>
       <div class="field"><label>Position / Job Title</label><input id="empPosition" placeholder="e.g. Project Engineer"></div>
+      <div class="field"><label>Work Location</label><input id="workLocation" placeholder="e.g. KUKA (Thailand) Co., Ltd."></div>
     </div>
 
     <div class="section-label">Approval</div>
@@ -646,6 +717,16 @@ try{
       <div class="field"><label>Approving Manager — Name</label><input id="mgrName" placeholder="Manager's full name"></div>
       <div class="field"><label>Approving Manager — Position</label><input id="mgrPosition" placeholder="e.g. Operations Manager"></div>
       <div class="field"><label>Approving Manager — Email</label><input id="mgrEmail" type="email" placeholder="manager@company.com"></div>
+    </div>
+
+    <div class="section-label">OT Calculation Settings</div>
+    <div class="card">
+      <div class="row2">
+        <div class="field"><label>Standard Check-In</label><input id="otStdCheckIn" type="time"></div>
+        <div class="field"><label>Standard Check-Out</label><input id="otStdCheckOut" type="time"></div>
+      </div>
+      <div class="field"><label>Break Minutes / Day</label><input id="otBreakMinutes" type="number" step="5" min="0" placeholder="60"></div>
+      <div class="field-note" style="margin-bottom:0">Used to auto-calculate OT hours and to pre-fill new OT entries. Verify results match your company's OT policy before submitting.</div>
     </div>
 
     <div class="section-label">My Signature</div>
@@ -712,6 +793,16 @@ try{
       <div class="t-value" id="totalDisplay">0.00 <small>THB</small></div>
     </div>
     <button onclick="window.print()">🖨 Export PDF</button>
+  </div>
+</div>
+
+<div class="totalbar ot-totalbar" id="otTotalbar" style="display:none">
+  <div class="totalbar-inner">
+    <div>
+      <div class="t-label">TOTAL OT HOURS</div>
+      <div class="t-value" id="otTotalDisplay">0.00 <small>hrs</small></div>
+    </div>
+    <button onclick="exportOTPDF()">🖨 Export PDF</button>
   </div>
 </div>
 
@@ -823,6 +914,53 @@ try{
   </div>
 </div>
 
+<!-- Add/Edit OT sheet -->
+<div class="overlay" id="otOverlay">
+  <div class="sheet">
+    <h2><span id="otSheetTitle">Add OT Entry</span><button onclick="closeOTSheet()" aria-label="Close">✕</button></h2>
+    <div class="field"><label>Date <span class="required-mark">*</span></label><input id="otDate" type="date"></div>
+    <div class="row2">
+      <div class="field"><label>Check In <span class="required-mark">*</span></label><input id="otTimeIn" type="time"></div>
+      <div class="field"><label>Check Out <span class="required-mark">*</span></label><input id="otTimeOut" type="time"></div>
+    </div>
+    <div class="field">
+      <label>Day Type</label>
+      <div class="daytype-row">
+        <button type="button" class="daytype-btn active" data-val="normal" onclick="selectDayType('normal')">Normal Workday</button>
+        <button type="button" class="daytype-btn" data-val="weekly_holiday" onclick="selectDayType('weekly_holiday')">Weekly Holiday</button>
+        <button type="button" class="daytype-btn" data-val="public_holiday" onclick="selectDayType('public_holiday')">Public Holiday</button>
+        <button type="button" class="daytype-btn" data-val="custom" onclick="selectDayType('custom')">Other (Custom ×)</button>
+      </div>
+    </div>
+    <div class="field" id="otCustomRateField" style="display:none">
+      <label>Custom Multiplier (×)</label>
+      <input id="otCustomRate" type="number" step="0.1" min="0" placeholder="e.g. 2" oninput="updateOTCalcPreview()">
+    </div>
+    <div class="ot-calc-preview" id="otCalcPreview">Enter check-in/out to calculate</div>
+    <div class="field-note" style="margin:6px 0 0">Auto-calculated from your Check-In/Check-Out and Break settings — please verify this matches your company's OT policy.</div>
+    <div class="field" style="margin-top:13px">
+      <label>Customer / Site Location</label>
+      <div class="tag-row" id="otLocTag"></div>
+      <div class="pair-builder">
+        <div class="province-wrap" id="otCompanyWrap">
+          <input id="otCompanyInput" placeholder="Search or type company name/abbr…" autocomplete="off" oninput="filterOTCompanies()" onfocus="filterOTCompanies()">
+          <div class="province-list" id="otCompanyList"></div>
+        </div>
+        <div class="province-wrap" id="otProvinceWrapEl">
+          <input id="otProvinceInput" placeholder="Then search & tap its province…" autocomplete="off" oninput="filterOTProvinces()" onfocus="filterOTProvinces()">
+          <div class="province-list" id="otProvinceListEl"></div>
+        </div>
+      </div>
+      <div class="pair-hint">Same company list as Expense. Type a name, then tap its province — new companies are added to your list automatically.</div>
+    </div>
+    <div class="field"><label>Details of Overtime Work</label><input id="otDetails" placeholder="e.g. Robot cell commissioning, urgent customer support"></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeOTSheet()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveOTEntry()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- Spending summary modal -->
 <div class="overlay" id="summaryOverlay">
   <div class="sheet" style="max-height:88vh">
@@ -835,6 +973,7 @@ try{
 
 <!-- Print layout -->
 <div class="printpage" id="printPage"></div>
+<div class="ot-printpage" id="otPrintPage"></div>
 
 <script>
 /* =========================================================
@@ -914,7 +1053,7 @@ const rstore={
 
 const KEY='kuka-reimb-v1';
 const PKEY='kuka-reimb-profile';
-let state={emp:{name:'',id:'',month:''},entries:[],months:{}};
+let state={emp:{name:'',id:'',month:''},entries:[],months:{},otEntries:[],otMonths:{}};
 let receipts={};
 let editIndex=null;
 let pendingReceipt=null;
@@ -928,6 +1067,14 @@ function switchMonth(rawMonth){
   currentMonthKey=key;
   state.entries=state.months[key];
   state.entries.forEach(e=>{if(!e.id)e.id=uid();if(e.location===undefined)e.location='';if(e.province===undefined)e.province='';});
+}
+let otCurrentMonthKey='';
+function switchOTMonth(rawMonth){
+  const key=monthKeyOf(rawMonth);
+  if(!state.otMonths[key])state.otMonths[key]=[];
+  otCurrentMonthKey=key;
+  state.otEntries=state.otMonths[key];
+  state.otEntries.forEach(e=>{if(!e.id)e.id=uid();});
 }
 async function ensureReceiptsLoaded(entries){
   for(const e of entries){
@@ -1142,6 +1289,14 @@ document.addEventListener('click',ev=>{
     const pl=document.getElementById('provinceList');
     if(pl)pl.classList.remove('open');
   }
+  if(!ev.target.closest('#otCompanyWrap')){
+    const ocl=document.getElementById('otCompanyList');
+    if(ocl)ocl.classList.remove('open');
+  }
+  if(!ev.target.closest('#otProvinceWrapEl')){
+    const opl=document.getElementById('otProvinceListEl');
+    if(opl)opl.classList.remove('open');
+  }
 });
 
 /* ---------- init / load ---------- */
@@ -1170,20 +1325,25 @@ async function initThemeFromStorage(){
   }catch(e){}
   applyThemeSwitchUI();
 }
-function toggleSettingsView(){
-  currentView=currentView==='home'?'settings':'home';
-  const isSettings=currentView==='settings';
-  document.getElementById('homeView').style.display=isSettings?'none':'block';
-  document.getElementById('settingsView').style.display=isSettings?'block':'none';
-  document.querySelector('.totalbar').style.display=isSettings?'none':'block';
-  document.getElementById('headerNavBtn').textContent=isSettings?'←':'⚙️';
-  document.getElementById('headerNavBtn').setAttribute('aria-label',isSettings?'Back':'Settings');
-  document.getElementById('headerTitle').textContent=isSettings?'Settings':'Expense Reimbursement';
-  document.getElementById('headerTagline').textContent=isSettings
-    ?'Employee details, approval contact, backup & storage'
-    :'Original-quality receipts · Saved on this device · Export as formal PDF';
+function setView(view){
+  currentView=view;
+  document.getElementById('homeView').style.display=view==='home'?'block':'none';
+  document.getElementById('otView').style.display=view==='ot'?'block':'none';
+  document.getElementById('settingsView').style.display=view==='settings'?'block':'none';
+  document.querySelector('.totalbar').style.display=view==='home'?'block':'none';
+  document.getElementById('otTotalbar').style.display=view==='ot'?'block':'none';
+  const navWrap=document.getElementById('headerNavWrap');
+  if(view==='home'){
+    navWrap.innerHTML=`<button class="header-nav-btn" onclick="setView('ot')" aria-label="Overtime">🕐</button><button class="header-nav-btn" onclick="setView('settings')" aria-label="Settings">⚙️</button>`;
+  }else{
+    navWrap.innerHTML=`<button class="header-nav-btn" onclick="setView('home')" aria-label="Back">←</button>`;
+  }
+  document.getElementById('headerTitle').textContent=view==='home'?'Expense Reimbursement':(view==='ot'?'Overtime (OT)':'Settings');
+  document.getElementById('headerTagline').textContent=view==='home'
+    ?'Original-quality receipts · Saved on this device · Export as formal PDF'
+    :(view==='ot'?'Track OT hours and export the approval form':'Employee details, approval contact, backup & storage');
   window.scrollTo(0,0);
-  if(isSettings)requestAnimationFrame(()=>requestAnimationFrame(initSignaturePad));
+  if(view==='settings')requestAnimationFrame(()=>requestAnimationFrame(initSignaturePad));
 }
 // Step the reporting month forward/back by one, so switching months is one tap on mobile
 async function stepMonth(delta){
@@ -1248,7 +1408,7 @@ async function load(){
   try{
     const pv=await kv.get(PKEY);
     if(pv){const p=JSON.parse(pv);
-      ['name','id','position','mgrName','mgrPosition','mgrEmail','signature','mileageRate'].forEach(k=>{if(!state.emp[k]&&p[k])state.emp[k]=p[k];});
+      ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes'].forEach(k=>{if(!state.emp[k]&&p[k])state.emp[k]=p[k];});
       if(!state.emp.descPresets&&Array.isArray(p.descPresets))state.emp.descPresets=p.descPresets;
       if(!state.emp.locPresets&&Array.isArray(p.locPresets))state.emp.locPresets=p.locPresets;
     }
@@ -1260,20 +1420,29 @@ async function load(){
   // Migrate legacy plain-string company presets into {name, abbr} objects
   state.emp.locPresets=state.emp.locPresets.map(p=>typeof p==='string'?{name:p,abbr:autoAbbrev(p)}:p);
   if(!state.months)state.months={};
+  if(!state.otMonths)state.otMonths={};
+  if(!Array.isArray(state.otEntries))state.otEntries=[];
   // Migrate older single-month data (no archive yet) into the new per-month structure
   if(Array.isArray(state.entries)&&state.entries.length&&Object.keys(state.months).length===0){
     state.months[monthKeyOf(state.emp&&state.emp.month)]=state.entries;
   }
   switchMonth(state.emp&&state.emp.month);
+  switchOTMonth(state.emp&&state.emp.otMonth);
   await ensureReceiptsLoaded(state.entries);
   document.getElementById('empName').value=state.emp.name||'';
   document.getElementById('empId').value=state.emp.id||'';
   document.getElementById('empPosition').value=state.emp.position||'';
+  document.getElementById('workLocation').value=state.emp.workLocation||'';
+  document.getElementById('otStdCheckIn').value=state.emp.otStdCheckIn||'09:00';
+  document.getElementById('otStdCheckOut').value=state.emp.otStdCheckOut||'18:00';
+  document.getElementById('otBreakMinutes').value=state.emp.otBreakMinutes!==undefined?state.emp.otBreakMinutes:60;
   document.getElementById('mgrName').value=state.emp.mgrName||'';
   document.getElementById('mgrPosition').value=state.emp.mgrPosition||'';
   document.getElementById('mgrEmail').value=state.emp.mgrEmail||'';
   document.getElementById('empMonth').value=state.emp.month||'';
+  document.getElementById('otMonthInput').value=state.emp.otMonth||'';
   render();
+  renderOT();
 }
 function wrapReceipt(v){
   if(v instanceof Blob)return{blob:v,url:URL.createObjectURL(v)};
@@ -1297,14 +1466,28 @@ let profTimer=null;
 function persistProfile(){
   clearTimeout(profTimer);
   profTimer=setTimeout(()=>{
-    kv.set(PKEY,JSON.stringify({name:state.emp.name,id:state.emp.id,position:state.emp.position,mgrName:state.emp.mgrName,mgrPosition:state.emp.mgrPosition,mgrEmail:state.emp.mgrEmail,descPresets:state.emp.descPresets,locPresets:state.emp.locPresets,signature:state.emp.signature,mileageRate:state.emp.mileageRate})).catch(()=>{});
+    kv.set(PKEY,JSON.stringify({name:state.emp.name,id:state.emp.id,position:state.emp.position,workLocation:state.emp.workLocation,mgrName:state.emp.mgrName,mgrPosition:state.emp.mgrPosition,mgrEmail:state.emp.mgrEmail,descPresets:state.emp.descPresets,locPresets:state.emp.locPresets,signature:state.emp.signature,mileageRate:state.emp.mileageRate,otStdCheckIn:state.emp.otStdCheckIn,otStdCheckOut:state.emp.otStdCheckOut,otBreakMinutes:state.emp.otBreakMinutes})).catch(()=>{});
   },600);
 }
-['empName','empId','empPosition','mgrName','mgrPosition','mgrEmail'].forEach(id=>{
+['empName','empId','empPosition','workLocation','mgrName','mgrPosition','mgrEmail'].forEach(id=>{
   document.getElementById(id).addEventListener('input',e=>{
-    const map={empName:'name',empId:'id',empPosition:'position',mgrName:'mgrName',mgrPosition:'mgrPosition',mgrEmail:'mgrEmail'};
+    const map={empName:'name',empId:'id',empPosition:'position',workLocation:'workLocation',mgrName:'mgrName',mgrPosition:'mgrPosition',mgrEmail:'mgrEmail'};
     state.emp[map[id]]=e.target.value;persist();persistProfile();
   });
+});
+['otStdCheckIn','otStdCheckOut'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',e=>{
+    state.emp[id]=e.target.value;persist();persistProfile();
+  });
+});
+document.getElementById('otBreakMinutes').addEventListener('input',e=>{
+  state.emp.otBreakMinutes=parseFloat(e.target.value)||0;persist();persistProfile();
+});
+document.getElementById('otMonthInput').addEventListener('input',e=>{
+  const newRaw=e.target.value;
+  switchOTMonth(newRaw);
+  state.emp.otMonth=newRaw;
+  persist();renderOT();
 });
 document.getElementById('empMonth').addEventListener('input',async e=>{
   const newRaw=e.target.value;
@@ -1989,6 +2172,11 @@ function availableBackupYears(){
     if(k==='_unspecified')hasUnspecified=true;
     else years.add(k.slice(0,4));
   });
+  Object.keys(state.otMonths).forEach(k=>{
+    if(!state.otMonths[k]||state.otMonths[k].length===0)return;
+    if(k==='_unspecified')hasUnspecified=true;
+    else years.add(k.slice(0,4));
+  });
   return{years:Array.from(years).sort().reverse(),hasUnspecified};
 }
 function populateBackupYearOptions(){
@@ -2029,6 +2217,13 @@ async function exportBackup(){
       monthsSubset[k]=state.months[k];
     }
   }
+  const otKeysToExport=chosen==='_unspecified'
+    ?['_unspecified']
+    :Object.keys(state.otMonths).filter(k=>k!=='_unspecified'&&k.startsWith(chosen+'-'));
+  const otMonthsSubset={};
+  for(const k of otKeysToExport){
+    if(state.otMonths[k]&&state.otMonths[k].length)otMonthsSubset[k]=state.otMonths[k];
+  }
   const rc={};
   for(const k in monthsSubset){
     for(const e of monthsSubset[k]){
@@ -2044,7 +2239,7 @@ async function exportBackup(){
       }
     }
   }
-  const payload={version:4,exported:new Date().toISOString(),state:{emp:state.emp,months:monthsSubset},receipts:rc};
+  const payload={version:5,exported:new Date().toISOString(),state:{emp:state.emp,months:monthsSubset,otMonths:otMonthsSubset},receipts:rc};
   const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
@@ -2110,22 +2305,30 @@ document.getElementById('importFile').addEventListener('change',ev=>{
       const p=JSON.parse(reader.result);
       const importedMonths=(p.state&&p.state.months&&typeof p.state.months==='object')
         ?p.state.months
-        :(p.state&&Array.isArray(p.state.entries)?{[monthKeyOf(p.state.emp&&p.state.emp.month)]:p.state.entries}:null);
-      if(!importedMonths)throw new Error('bad');
+        :(p.state&&Array.isArray(p.state.entries)?{[monthKeyOf(p.state.emp&&p.state.emp.month)]:p.state.entries}:{});
+      const importedOTMonths=(p.state&&p.state.otMonths&&typeof p.state.otMonths==='object')?p.state.otMonths:{};
       const keysInFile=Object.keys(importedMonths).filter(k=>importedMonths[k]&&importedMonths[k].length>0);
-      if(keysInFile.length===0){alert('This backup file has no expense data to restore.');return;}
+      const otKeysInFile=Object.keys(importedOTMonths).filter(k=>importedOTMonths[k]&&importedOTMonths[k].length>0);
+      if(keysInFile.length===0&&otKeysInFile.length===0){alert('This backup file has no data to restore.');return;}
       // Safe merge: never overwrite months that already have data on this device
       const newKeys=keysInFile.filter(k=>!state.months[k]||state.months[k].length===0);
       const skipKeys=keysInFile.filter(k=>state.months[k]&&state.months[k].length>0);
+      const newOTKeys=otKeysInFile.filter(k=>!state.otMonths[k]||state.otMonths[k].length===0);
+      const skipOTKeys=otKeysInFile.filter(k=>state.otMonths[k]&&state.otMonths[k].length>0);
       const nameOf=k=>k==='_unspecified'?'No month set':(monthLabel(k)||k);
-      let msg=`This backup contains ${keysInFile.length} month(s).\n\n`;
-      if(newKeys.length)msg+=`✓ Will be added: ${newKeys.map(nameOf).join(', ')}\n\n`;
-      if(skipKeys.length)msg+=`⚠ Already exist on this device and will be SKIPPED (not overwritten): ${skipKeys.map(nameOf).join(', ')}\n\n`;
-      if(newKeys.length===0){alert(msg+'Nothing new to restore — all months in this file already exist on this device.');return;}
-      msg+='Continue?';
+      let msg='';
+      if(keysInFile.length)msg+=`Expense: ${keysInFile.length} month(s) in file.\n`;
+      if(otKeysInFile.length)msg+=`OT: ${otKeysInFile.length} month(s) in file.\n`;
+      msg+='\n';
+      if(newKeys.length)msg+=`✓ Expense will be added: ${newKeys.map(nameOf).join(', ')}\n`;
+      if(skipKeys.length)msg+=`⚠ Expense already exists, SKIPPED: ${skipKeys.map(nameOf).join(', ')}\n`;
+      if(newOTKeys.length)msg+=`✓ OT will be added: ${newOTKeys.map(nameOf).join(', ')}\n`;
+      if(skipOTKeys.length)msg+=`⚠ OT already exists, SKIPPED: ${skipOTKeys.map(nameOf).join(', ')}\n`;
+      if(newKeys.length===0&&newOTKeys.length===0){alert(msg+'\nNothing new to restore — everything in this file already exists on this device.');return;}
+      msg+='\nContinue?';
       if(!confirm(msg))return;
       if(p.state&&p.state.emp){
-        ['name','id','position','mgrName','mgrPosition','mgrEmail','signature','mileageRate'].forEach(k=>{
+        ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes'].forEach(k=>{
           if(!state.emp[k]&&p.state.emp[k])state.emp[k]=p.state.emp[k];
         });
         if(Array.isArray(p.state.emp.descPresets)){
@@ -2180,20 +2383,32 @@ document.getElementById('importFile').addEventListener('change',ev=>{
           }
         }
       }
+      for(const key of newOTKeys){
+        const items=importedOTMonths[key];
+        items.forEach(e=>{if(!e.id)e.id=uid();});
+        state.otMonths[key]=items;
+      }
       switchMonth(state.emp&&state.emp.month);
+      switchOTMonth(state.emp&&state.emp.otMonth);
       try{await kv.set(KEY,JSON.stringify(state));}catch(err){}
       persistProfile();
       document.getElementById('empName').value=state.emp.name||'';
       document.getElementById('empId').value=state.emp.id||'';
       document.getElementById('empPosition').value=state.emp.position||'';
+      document.getElementById('workLocation').value=state.emp.workLocation||'';
+      document.getElementById('otStdCheckIn').value=state.emp.otStdCheckIn||'09:00';
+  document.getElementById('otStdCheckOut').value=state.emp.otStdCheckOut||'18:00';
+      document.getElementById('otBreakMinutes').value=state.emp.otBreakMinutes!==undefined?state.emp.otBreakMinutes:60;
       document.getElementById('mgrName').value=state.emp.mgrName||'';
       document.getElementById('mgrPosition').value=state.emp.mgrPosition||'';
       document.getElementById('mgrEmail').value=state.emp.mgrEmail||'';
       document.getElementById('empMonth').value=state.emp.month||'';
+      document.getElementById('otMonthInput').value=state.emp.otMonth||'';
       render();
+      renderOT();
       renderSavedSignature();
       updateStorageUsage();
-      noteMsg((missingImages?'✓ Restored (some images skipped — storage full) — ':'✓ ')+`Added ${newKeys.length} month(s)`+(skipKeys.length?`, skipped ${skipKeys.length} existing`:''));
+      noteMsg((missingImages?'✓ Restored (some images skipped — storage full) — ':'✓ ')+`Added ${newKeys.length} expense + ${newOTKeys.length} OT month(s)`);
     }catch(e){alert('Invalid file — please select a .json file exported from this app.');}
   };
   reader.readAsText(file);
@@ -2254,6 +2469,11 @@ function combinedLocation(e){
   const pairs=companyProvincePairs(e);
   if(pairs.length===0)return'';
   return pairs.map(p=>p.name+(p.province?' ('+p.province+')':'')).join('; ');
+}
+function otLocationDisplay(loc){
+  if(!loc)return'';
+  if(typeof loc==='object')return loc.name+(loc.province?' ('+loc.province+')':'');
+  return loc;
 }
 function monthLabel(m){
   if(!m)return'';
@@ -2556,6 +2776,441 @@ function sendApprovalEmail(){
     'A detailed PDF (including itemized expenses and receipt images) is attached to this email.',
     '',
     'Kindly review and approve at your convenience. Please let me know if any additional information is required.',
+    '',
+    'Best regards,',
+    state.emp.name||''
+  ].filter(l=>l!==null).join('\n');
+  const to=encodeURIComponent(state.emp.mgrEmail||'');
+  const mailto=`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyLines)}`;
+  window.location.href=mailto;
+}
+
+/* =========================================================
+   OT (Overtime) — independent month archive, own PDF/email
+========================================================= */
+function getOTStandardHours(){
+  const ci=state.emp.otStdCheckIn||'09:00';
+  const co=state.emp.otStdCheckOut||'18:00';
+  const[ciH,ciM]=ci.split(':').map(Number);
+  const[coH,coM]=co.split(':').map(Number);
+  let mins=(coH*60+coM)-(ciH*60+ciM);
+  if(mins<0)mins+=24*60;
+  mins-=Number(state.emp.otBreakMinutes)||0;
+  return Math.max(0,mins/60);
+}
+function calcOTHours(timeIn,timeOut,dayType,customRate){
+  if(!timeIn||!timeOut)return{ot1x:0,ot15x:0,ot3x:0,otCustom:0,totalHours:0};
+  const[inH,inM]=timeIn.split(':').map(Number);
+  const[outH,outM]=timeOut.split(':').map(Number);
+  let totalMinutes=(outH*60+outM)-(inH*60+inM);
+  if(totalMinutes<0)totalMinutes+=24*60;
+  const stdHours=getOTStandardHours();
+  const breakMin=Number(state.emp.otBreakMinutes)||0;
+  totalMinutes-=breakMin;
+  const totalHours=Math.max(0,totalMinutes/60);
+  let ot1x=0,ot15x=0,ot3x=0,otCustom=0;
+  if(dayType==='weekly_holiday'){
+    if(totalHours<=stdHours){ot1x=totalHours;}
+    else{ot1x=stdHours;ot3x=totalHours-stdHours;}
+  }else if(dayType==='public_holiday'){
+    ot3x=totalHours;
+  }else if(dayType==='custom'){
+    otCustom=Math.max(0,totalHours-stdHours);
+  }else{
+    ot15x=Math.max(0,totalHours-stdHours);
+  }
+  const round2=n=>Math.round(n*100)/100;
+  return{ot1x:round2(ot1x),ot15x:round2(ot15x),ot3x:round2(ot3x),otCustom:round2(otCustom),totalHours:round2(totalHours)};
+}
+let otSelectedDayType='normal';
+function selectDayType(val){
+  otSelectedDayType=val;
+  document.querySelectorAll('.daytype-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===val));
+  document.getElementById('otCustomRateField').style.display=val==='custom'?'block':'none';
+  updateOTCalcPreview();
+}
+function updateOTCalcPreview(){
+  const timeIn=document.getElementById('otTimeIn').value;
+  const timeOut=document.getElementById('otTimeOut').value;
+  const el=document.getElementById('otCalcPreview');
+  if(!timeIn||!timeOut){el.textContent='Enter check-in/out to calculate';return;}
+  const r=calcOTHours(timeIn,timeOut,otSelectedDayType);
+  const parts=[];
+  if(r.ot1x)parts.push(`${r.ot1x.toFixed(2)} hrs @ 1×`);
+  if(r.ot15x)parts.push(`${r.ot15x.toFixed(2)} hrs @ 1.5×`);
+  if(r.ot3x)parts.push(`${r.ot3x.toFixed(2)} hrs @ 3×`);
+  if(r.otCustom){
+    const rate=parseFloat(document.getElementById('otCustomRate').value)||0;
+    parts.push(`${r.otCustom.toFixed(2)} hrs @ ${rate||'?'}×`);
+  }
+  el.textContent=`Total: ${r.totalHours.toFixed(2)} hrs`+(parts.length?' → '+parts.join(' + '):' (within standard hours, no OT)');
+}
+document.getElementById('otTimeIn').addEventListener('input',updateOTCalcPreview);
+
+/* ---------- OT location picker (single company+province, shares database with Expense) ---------- */
+let otSelectedLocation=null;
+function renderOTLocTag(){
+  const wrap=document.getElementById('otLocTag');
+  if(!wrap)return;
+  if(!otSelectedLocation){
+    wrap.innerHTML='<div class="tag-empty">No site selected yet — search a company below, then its province</div>';
+    return;
+  }
+  const preset=state.emp.locPresets.find(p=>p.name.toLowerCase()===otSelectedLocation.name.toLowerCase());
+  const shortName=preset?preset.abbr:otSelectedLocation.name;
+  const provinceAbbr=PROVINCE_ABBR[otSelectedLocation.province]||'';
+  const display=shortName+(provinceAbbr?`(${provinceAbbr})`:'');
+  wrap.innerHTML=`<span class="tag-pill" title="${esc(otSelectedLocation.name)}${otSelectedLocation.province?', '+esc(otSelectedLocation.province):''}">${esc(display)}<span class="tag-remove" onclick="removeOTLocation()">✕</span></span>`;
+}
+function removeOTLocation(){
+  otSelectedLocation=null;
+  renderOTLocTag();
+}
+function filterOTCompanies(){
+  const raw=document.getElementById('otCompanyInput').value.trim();
+  const val=raw.toLowerCase();
+  const list=document.getElementById('otCompanyList');
+  const presets=state.emp.locPresets;
+  const matches=val?presets.filter(p=>p.name.toLowerCase().includes(val)||(p.abbr||'').toLowerCase().includes(val)):presets;
+  if(matches.length===0){
+    list.innerHTML=val
+      ?`<div class="province-empty">No match in your saved list — search a Province below to add "${esc(raw)}" as a new company</div>`
+      :'<div class="province-empty">Type to search your saved companies, or enter a new one</div>';
+  }else{
+    list.innerHTML=matches.map(p=>`<div class="province-item" onclick="selectOTCompanyFromList('${p.name.replace(/'/g,"\\'")}')">${esc(p.name)} <span style="color:var(--ink-2);font-family:'IBM Plex Mono',monospace;font-size:.75em">(${esc(p.abbr)})</span></div>`).join('');
+  }
+  list.classList.add('open');
+}
+function selectOTCompanyFromList(name){
+  document.getElementById('otCompanyList').classList.remove('open');
+  document.getElementById('otCompanyInput').value=name;
+  const preset=state.emp.locPresets.find(p=>p.name.toLowerCase()===name.toLowerCase());
+  if(preset&&preset.province){
+    finalizeOTLocation(name,preset.province);
+  }else{
+    document.getElementById('otProvinceInput').value='';
+    document.getElementById('otProvinceInput').focus();
+  }
+}
+function filterOTProvinces(){
+  const val=document.getElementById('otProvinceInput').value.trim().toLowerCase();
+  const list=document.getElementById('otProvinceListEl');
+  const matches=val?THAI_PROVINCES.filter(p=>p.toLowerCase().includes(val)):THAI_PROVINCES;
+  list.innerHTML=matches.length
+    ?matches.map(p=>`<div class="province-item" onclick="selectOTProvince('${p}')">${esc(p)}</div>`).join('')
+    :'<div class="province-empty">No matching province</div>';
+  list.classList.add('open');
+}
+function selectOTProvince(p){
+  document.getElementById('otProvinceInput').value=p;
+  document.getElementById('otProvinceListEl').classList.remove('open');
+  const name=document.getElementById('otCompanyInput').value.trim();
+  if(!name){
+    alert('Please enter or select a company name first, then choose its province.');
+    document.getElementById('otCompanyInput').focus();
+    return;
+  }
+  finalizeOTLocation(name,p);
+}
+function finalizeOTLocation(name,province){
+  let preset=state.emp.locPresets.find(p=>p.name.toLowerCase()===name.toLowerCase());
+  const canonicalName=preset?preset.name:name;
+  if(!preset){
+    const suggested=autoAbbrev(name);
+    const typed=prompt(`New company: "${name}"\n\nSet a short abbreviation for the compact tag view (e.g. DENSO):`,suggested);
+    const abbr=(typed===null?suggested:(typed.trim()||suggested)).toUpperCase();
+    preset={name,abbr,province};
+    state.emp.locPresets.push(preset);
+  }else{
+    preset.province=province;
+  }
+  persistProfile();
+  otSelectedLocation={name:canonicalName,province};
+  renderOTLocTag();
+  document.getElementById('otCompanyInput').value='';
+  document.getElementById('otProvinceInput').value='';
+}
+
+document.getElementById('otTimeOut').addEventListener('input',updateOTCalcPreview);
+
+let otEditIndex=null;
+function openOTSheet(i=null){
+  otEditIndex=i;
+  document.getElementById('otSheetTitle').textContent=i===null?'Add OT Entry':'Edit OT Entry';
+  const isNew=i===null;
+  const defaults={
+    date:'',
+    timeIn:state.emp.otStdCheckIn||'09:00',
+    timeOut:state.emp.otStdCheckOut||'18:00',
+    dayType:'normal',
+    location:null,
+    details:''
+  };
+  const e=isNew?defaults:state.otEntries[i];
+  document.getElementById('otDate').value=e.date||'';
+  document.getElementById('otTimeIn').value=e.timeIn||'';
+  document.getElementById('otTimeOut').value=e.timeOut||'';
+  document.getElementById('otDetails').value=e.details||'';
+  // Support both the new {name,province} object and legacy plain-string location
+  if(e.location&&typeof e.location==='object'){
+    otSelectedLocation={name:e.location.name||'',province:e.location.province||''};
+  }else if(e.location){
+    otSelectedLocation={name:e.location,province:''};
+  }else{
+    otSelectedLocation=null;
+  }
+  document.getElementById('otCompanyInput').value='';
+  document.getElementById('otProvinceInput').value='';
+  renderOTLocTag();
+  otSelectedDayType=e.dayType||'normal';
+  document.querySelectorAll('.daytype-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===otSelectedDayType));
+  document.getElementById('otCustomRateField').style.display=otSelectedDayType==='custom'?'block':'none';
+  document.getElementById('otCustomRate').value=(e.customRate!==undefined&&e.customRate!==null)?e.customRate:'';
+  updateOTCalcPreview();
+  document.getElementById('otOverlay').classList.add('open');
+}
+function closeOTSheet(){document.getElementById('otOverlay').classList.remove('open');}
+function saveOTEntry(){
+  const date=document.getElementById('otDate').value;
+  const timeIn=document.getElementById('otTimeIn').value;
+  const timeOut=document.getElementById('otTimeOut').value;
+  const details=document.getElementById('otDetails').value.trim();
+  let leftoverCompany=document.getElementById('otCompanyInput').value.trim();
+  let leftoverProvince=document.getElementById('otProvinceInput').value.trim();
+  const provinceMatch=THAI_PROVINCES.find(p=>p.toLowerCase()===leftoverProvince.toLowerCase());
+  if(leftoverCompany&&provinceMatch){
+    finalizeOTLocation(leftoverCompany,provinceMatch);
+    leftoverCompany='';leftoverProvince='';
+  }
+  const isBlank=!date&&!timeIn&&!timeOut&&!otSelectedLocation&&!leftoverCompany&&!leftoverProvince&&!details;
+  if(isBlank){closeOTSheet();return;}
+  if(leftoverCompany||leftoverProvince){
+    alert(`You started adding a site (${leftoverCompany||'no name yet'} / ${leftoverProvince||'no province yet'}) but haven't finished pairing it with a province. Please complete it or clear the box before saving.`);
+    return;
+  }
+  if(!date){alert('Please select a Date.');document.getElementById('otDate').focus();return;}
+  if(!timeIn||!timeOut){alert('Please enter both Check In and Check Out.');return;}
+  let customRate=null;
+  if(otSelectedDayType==='custom'){
+    customRate=parseFloat(document.getElementById('otCustomRate').value);
+    if(!customRate||customRate<=0){
+      alert('Please enter a valid custom multiplier (e.g. 2 for 2×).');
+      document.getElementById('otCustomRate').focus();
+      return;
+    }
+  }
+  const calc=calcOTHours(timeIn,timeOut,otSelectedDayType);
+  const e={
+    id:otEditIndex===null?uid():state.otEntries[otEditIndex].id,
+    date,timeIn,timeOut,dayType:otSelectedDayType,
+    location:otSelectedLocation?{name:otSelectedLocation.name,province:otSelectedLocation.province}:null,
+    details,
+    ot1x:calc.ot1x,ot15x:calc.ot15x,ot3x:calc.ot3x,
+    otCustom:calc.otCustom,customRate
+  };
+  if(otEditIndex===null)state.otEntries.push(e);else state.otEntries[otEditIndex]=e;
+  state.otEntries.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  persist();renderOT();
+  closeOTSheet();
+}
+function delOTEntry(i){
+  if(!confirm('Delete this OT entry?'))return;
+  state.otEntries.splice(i,1);persist();renderOT();
+}
+function clearOTMonth(){
+  if(state.otEntries.length===0){alert('There are no OT entries to clear for this period.');return;}
+  const label=monthLabel(state.emp.otMonth)||'UNSPECIFIED';
+  const typed=prompt(`This will PERMANENTLY delete all ${state.otEntries.length} OT entries for ${label}. Cannot be undone.\n\nType the month name exactly to confirm:\n"${label}"`);
+  if(typed===null)return;
+  if(typed.trim()!==label){alert('Text did not match — nothing was deleted.');return;}
+  state.otEntries.length=0;persist();renderOT();
+  noteMsg(`✓ Cleared all OT entries for ${label}`);
+}
+async function otStepMonth(delta){
+  const el=document.getElementById('otMonthInput');
+  const base=el.value||new Date().toISOString().slice(0,7);
+  const[y,m]=base.split('-').map(Number);
+  const d=new Date(y,m-1+delta,1);
+  const next=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  el.value=next;
+  switchOTMonth(next);
+  state.emp.otMonth=next;
+  persist();renderOT();
+}
+function otJumpToMonth(key){
+  if(key===otCurrentMonthKey)return;
+  const rawValue=key==='_unspecified'?'':key;
+  document.getElementById('otMonthInput').value=rawValue;
+  switchOTMonth(rawValue);
+  state.emp.otMonth=rawValue;
+  persist();renderOT();
+}
+function renderOT(){
+  const list=document.getElementById('otEntryList');
+  if(!list)return;
+  list.innerHTML='';
+  document.getElementById('otEmptyState').style.display=state.otEntries.length?'none':'block';
+  const dayTypeLabel={normal:'Normal',weekly_holiday:'Weekly Holiday',public_holiday:'Public Holiday',custom:'Other'};
+  state.otEntries.forEach((e,i)=>{
+    const div=document.createElement('div');
+    div.className='entry';
+    const hrsParts=[
+      e.ot1x?e.ot1x.toFixed(2)+'h @1×':'',
+      e.ot15x?e.ot15x.toFixed(2)+'h @1.5×':'',
+      e.ot3x?e.ot3x.toFixed(2)+'h @3×':'',
+      e.otCustom?e.otCustom.toFixed(2)+'h @'+(e.customRate||'?')+'×':''
+    ].filter(Boolean);
+    div.innerHTML=`
+      <div class="entry-date">${fmtDateShort(e.date)}</div>
+      <div class="entry-body">
+        <div class="entry-top-row">
+          <div class="entry-desc">${esc(e.timeIn)}–${esc(e.timeOut)}</div>
+          <span class="status-badge status-draft">${dayTypeLabel[e.dayType]||'Normal'}</span>
+        </div>
+        ${e.location?`<div class="entry-purpose">📍 ${esc(otLocationDisplay(e.location))}</div>`:''}
+        ${e.details?`<div class="entry-purpose">${esc(e.details)}</div>`:''}
+        <div class="entry-amt">${hrsParts.length?hrsParts.join(' · '):'0.00h (no OT)'}</div>
+      </div>
+      <div class="entry-actions">
+        <button class="icon-btn" onclick="openOTSheet(${i})" aria-label="Edit">✎</button>
+        <button class="icon-btn" onclick="delOTEntry(${i})" aria-label="Delete">🗑</button>
+      </div>`;
+    list.appendChild(div);
+  });
+  const sum1x=state.otEntries.reduce((s,e)=>s+(e.ot1x||0),0);
+  const sum15x=state.otEntries.reduce((s,e)=>s+(e.ot15x||0),0);
+  const sum3x=state.otEntries.reduce((s,e)=>s+(e.ot3x||0),0);
+  const sumCustom=state.otEntries.reduce((s,e)=>s+(e.otCustom||0),0);
+  document.getElementById('otSum1x').textContent=sum1x.toFixed(2)+' hrs';
+  document.getElementById('otSum15x').textContent=sum15x.toFixed(2)+' hrs';
+  document.getElementById('otSum3x').textContent=sum3x.toFixed(2)+' hrs';
+  const otherRow=document.getElementById('otSumOtherRow');
+  if(sumCustom>0){
+    otherRow.style.display='flex';
+    document.getElementById('otSumOther').textContent=sumCustom.toFixed(2)+' hrs';
+  }else{
+    otherRow.style.display='none';
+  }
+  document.getElementById('otTotalDisplay').innerHTML=(sum1x+sum15x+sum3x+sumCustom).toFixed(2)+' <small>hrs</small>';
+  renderOTHistory();
+  buildOTPrint();
+}
+function renderOTHistory(){
+  const wrap=document.getElementById('otHistoryList');
+  if(!wrap)return;
+  const keys=Object.keys(state.otMonths).filter(k=>k!==otCurrentMonthKey&&state.otMonths[k].length>0);
+  document.getElementById('otHistoryEmpty').style.display=keys.length?'none':'block';
+  keys.sort((a,b)=>{if(a==='_unspecified')return 1;if(b==='_unspecified')return-1;return b.localeCompare(a);});
+  wrap.innerHTML='';
+  keys.forEach(k=>{
+    const items=state.otMonths[k];
+    const totalHrs=items.reduce((s,e)=>s+(e.ot1x||0)+(e.ot15x||0)+(e.ot3x||0)+(e.otCustom||0),0);
+    const label=k==='_unspecified'?'(No month set)':(monthLabel(k)||k);
+    const div=document.createElement('div');
+    div.className='history-row';
+    div.onclick=()=>otJumpToMonth(k);
+    div.innerHTML=`<div><div class="history-name">${esc(label)}</div><div class="history-meta">${items.length} entr${items.length!==1?'ies':'y'}</div></div><div class="history-amt">${totalHrs.toFixed(2)} hrs</div>`;
+    wrap.appendChild(div);
+  });
+}
+function buildOTPrint(){
+  const target=document.getElementById('otPrintPage');
+  if(!target)return;
+  let rows='';
+  const n=Math.max(state.otEntries.length,1);
+  for(let i=0;i<n;i++){
+    const e=state.otEntries[i];
+    const detailsText=e?[
+      e.details,
+      e.location?`📍 ${otLocationDisplay(e.location)}`:'',
+      e.otCustom?`OT: ${e.otCustom.toFixed(2)} hrs @ ${e.customRate||'?'}×`:''
+    ].filter(Boolean).join(' — '):'';
+    rows+=`<tr>
+      <td>${e?fmtDateFull(e.date):'&nbsp;&nbsp;/&nbsp;&nbsp;'}</td>
+      <td>${e?esc(e.timeIn):''}</td>
+      <td>${e?esc(e.timeOut):''}</td>
+      <td>${e&&e.ot1x?e.ot1x.toFixed(2):''}</td>
+      <td>${e&&e.ot15x?e.ot15x.toFixed(2):''}</td>
+      <td>${e&&e.ot3x?e.ot3x.toFixed(2):''}</td>
+      <td class="l">${esc(detailsText)}</td>
+      <td></td>
+    </tr>`;
+  }
+  const today=new Date();
+  const printed=String(today.getDate()).padStart(2,'0')+'/'+String(today.getMonth()+1).padStart(2,'0')+'/'+today.getFullYear();
+  const mParts=(state.emp.otMonth||'').split('-');
+  const thMonths=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  const monthName=mParts.length===2?thMonths[parseInt(mParts[1])-1]||'':'';
+  const yearBE=mParts.length===2?(parseInt(mParts[0])+543):'';
+  target.innerHTML=`
+    <div class="otp-title">เอกสารการขออนุมัติค่าล่วงเวลา (OT Form)</div>
+    <div class="pp-line" style="justify-content:flex-end"><b>ประจำเดือน Month</b><span style="max-width:22%;flex:none;width:22%">${esc(monthName)}</span><b style="margin-left:12px">ปี year</b><span style="max-width:12%;flex:none;width:12%">${yearBE||''}</span></div>
+    <div class="pp-line"><b>ชื่อ-นามสกุลพนักงาน/Name</b><span>${esc(state.emp.name)}</span><b style="margin-left:12px">รหัสพนักงาน/Employee Code</b><span style="max-width:16%">${esc(state.emp.id)}</span><b style="margin-left:12px">ตำแหน่ง/Position</b><span style="max-width:20%">${esc(state.emp.position)}</span></div>
+    <div class="pp-line"><b>สถานที่ทำงาน Work location</b><span>${esc(state.emp.workLocation)}</span><b style="margin-left:12px">ชื่อหัวหน้างาน/ผู้จัดการต้นสังกัด (Manager)</b><span style="max-width:25%">${esc(state.emp.mgrName)}</span></div>
+    <div style="height:8px"></div>
+    <table class="otp-table">
+      <thead>
+        <tr>
+          <th rowspan="2" style="width:9%">วันที่ / Date</th>
+          <th colspan="2">ชั่วโมงทำงาน (Work hrs.)</th>
+          <th colspan="3">จำนวนชั่วโมง O.T. (Overtime hrs.)</th>
+          <th rowspan="2" style="width:24%">รายละเอียดของงานที่ล่วงเวลา<br>Details of overtime work</th>
+          <th rowspan="2" style="width:14%">หัวหน้างาน/ผู้จัดการต้นสังกัด<br>Manager approved</th>
+        </tr>
+        <tr>
+          <th style="width:8%">เวลาเข้างาน (In)</th>
+          <th style="width:8%">เวลาออกงาน (Out)</th>
+          <th style="width:7%">O.T. 1 เท่า</th>
+          <th style="width:7%">O.T. 1.5 เท่า</th>
+          <th style="width:7%">O.T. 3 เท่า</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="pp-cert-block">
+      <div class="pp-sign">
+        <div>
+          ${state.emp.signature?`<div class="sig-img-wrap"><img class="sig-img" src="${state.emp.signature}" alt="Signature"></div>`:'<div class="sig-line"></div>'}
+          <div class="sig-role">${esc(state.emp.name)||'Employee'}</div>
+          <div class="sig-date">จัดเตรียมโดย / Prepared by (Employee)</div>
+          <div class="sig-date">Date: ${state.emp.signature?printed:'............./............./..............'}</div>
+        </div>
+        <div>
+          <div class="sig-line"></div>
+          <div class="sig-role">${esc(state.emp.mgrName)||'Manager'}</div>
+          <div class="sig-date">อนุมัติโดย / Approved by (Manager)</div>
+          <div class="sig-date">Date: ............./............./..............</div>
+        </div>
+      </div>
+    </div>`;
+}
+function exportOTPDF(){
+  document.body.classList.add('printing-ot');
+  window.print();
+  setTimeout(()=>document.body.classList.remove('printing-ot'),1000);
+}
+function sendOTApprovalEmail(){
+  const sum1x=state.otEntries.reduce((s,e)=>s+(e.ot1x||0),0);
+  const sum15x=state.otEntries.reduce((s,e)=>s+(e.ot15x||0),0);
+  const sum3x=state.otEntries.reduce((s,e)=>s+(e.ot3x||0),0);
+  const sumCustom=state.otEntries.reduce((s,e)=>s+(e.otCustom||0),0);
+  const period=monthLabel(state.emp.otMonth)||'(period not set)';
+  const subject=`OT Approval Form (KUKA OS) — ${period}`;
+  const bodyLines=[
+    `Dear ${state.emp.mgrName||'Manager'},`,
+    '',
+    `Please find below the overtime summary for ${period}, submitted for your review and approval.`,
+    '',
+    `Employee: ${state.emp.name||'—'} (${state.emp.id||'—'})`,
+    state.emp.position?`Position: ${state.emp.position}`:null,
+    state.emp.workLocation?`Work Location: ${state.emp.workLocation}`:null,
+    `Reporting Month: ${period}`,
+    `Total Entries: ${state.otEntries.length}`,
+    `OT Hours — 1×: ${sum1x.toFixed(2)} hrs, 1.5×: ${sum15x.toFixed(2)} hrs, 3×: ${sum3x.toFixed(2)} hrs`+(sumCustom?`, Other: ${sumCustom.toFixed(2)} hrs`:''),
+    '',
+    'The OT approval form (PDF) is attached to this email.',
+    '',
+    'Kindly review and approve at your convenience.',
     '',
     'Best regards,',
     state.emp.name||''
