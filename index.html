@@ -77,10 +77,10 @@ header{
   box-shadow:0 1px 0 rgba(255,255,255,.03), 0 4px 16px rgba(0,0,0,.5);
 }
 .brand{display:flex;align-items:center;gap:10px;margin-bottom:3px}
-.header-nav-wrap{margin-left:auto;display:flex;gap:8px;flex-shrink:0}
+.header-nav-wrap{margin-left:auto;display:flex;gap:5px;flex-shrink:0}
 .header-nav-btn{
   background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.12);
-  color:#fff;width:38px;height:38px;border-radius:var(--r-sm);font-size:1.05rem;cursor:pointer;
+  color:#fff;width:38px;height:38px;border-radius:var(--r-sm);font-size:1.15rem;cursor:pointer;
   display:flex;align-items:center;justify-content:center;flex-shrink:0;
   transition:background .15s ease;
 }
@@ -128,6 +128,96 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   transition:background .15s ease;
 }
 .month-nav:active{background:var(--kuka-soft);border-color:var(--kuka-border);color:var(--kuka-dark)}
+
+/* ===== Calendar ===== */
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-nav-btn{
+  width:36px;height:36px;border-radius:var(--r-sm);border:1px solid var(--line);
+  background:var(--surface-2);font-size:1.2rem;color:var(--ink-2);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+.cal-nav-btn:active{background:var(--kuka-soft);border-color:var(--kuka-border);color:var(--kuka-dark)}
+.cal-month-label{font-weight:700;font-size:1rem;color:var(--ink)}
+.cal-weekdays{
+  display:grid;grid-template-columns:repeat(7,1fr);text-align:center;
+  font-size:.68rem;font-weight:700;color:var(--ink-3);margin-bottom:6px;letter-spacing:.02em;
+}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-cell{
+  aspect-ratio:1;border-radius:var(--r-sm);border:1px solid transparent;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  position:relative;
+}
+.cal-cell.cal-has-event{cursor:pointer;background:var(--surface-2);border-color:var(--line)}
+.cal-cell.cal-has-event:active{background:var(--kuka-soft);border-color:var(--kuka-border)}
+.cal-cell-muted{color:var(--ink-3);opacity:.32}
+.cal-daynum{font-size:.82rem;font-weight:600;color:var(--ink)}
+.cal-cell-muted .cal-daynum{color:var(--ink-3)}
+.cal-today .cal-daynum{
+  background:var(--kuka);color:#fff;border-radius:50%;
+  width:23px;height:23px;display:flex;align-items:center;justify-content:center;
+}
+.cal-dots{display:flex;gap:2px;height:5px}
+.cal-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.cal-dot-expense{background:var(--kuka)}
+.cal-dot-ot{background:#1B5FA8}
+.cal-dot-task{background:#0E8A4D}
+.cal-dot-note{background:#7A3FB0}
+.cal-legend{
+  display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:14px;
+  font-size:.76rem;color:var(--ink-2);
+}
+.cal-legend span{display:flex;align-items:center;gap:5px}
+.cal-legend .cal-dot{width:8px;height:8px}
+.cal-day-item{
+  display:flex;gap:10px;align-items:flex-start;padding:11px 0;
+  border-bottom:1px solid var(--line);
+}
+.cal-day-item:last-child{border-bottom:none}
+.cal-day-item .cal-dot{width:9px;height:9px;margin-top:5px;flex-shrink:0}
+.cal-day-item-title{font-weight:600;font-size:.9rem;color:var(--ink)}
+.cal-day-item-sub{font-size:.78rem;color:var(--ink-2);margin-top:2px}
+
+/* ===== Floating add button (Calendar/home view only) ===== */
+.fab{
+  position:fixed;right:18px;bottom:calc(24px + env(safe-area-inset-bottom));z-index:45;
+  width:56px;height:56px;border-radius:50%;border:none;
+  background:var(--kuka);color:#fff;font-size:1.9rem;font-weight:300;line-height:1;
+  display:none;align-items:center;justify-content:center;cursor:pointer;
+  box-shadow:0 6px 20px rgba(255,90,0,.45);
+  transition:transform .2s ease,background .15s ease;
+}
+.fab:active{transform:scale(.93)}
+.fab.open{transform:rotate(45deg);background:var(--kuka-dark)}
+.fab-menu{
+  position:fixed;right:18px;bottom:calc(90px + env(safe-area-inset-bottom));z-index:45;
+  display:flex;flex-direction:column;gap:10px;align-items:flex-end;
+  opacity:0;pointer-events:none;transform:translateY(10px);
+  transition:opacity .18s ease,transform .18s ease;
+}
+.fab-menu.open{opacity:1;pointer-events:auto;transform:translateY(0)}
+.fab-menu-item{
+  display:flex;align-items:center;gap:8px;
+  background:var(--card);color:var(--ink);border:1px solid var(--line);
+  padding:10px 16px;border-radius:99px;font-family:inherit;font-size:.85rem;font-weight:600;
+  box-shadow:var(--shadow-md);cursor:pointer;white-space:nowrap;
+}
+.fab-menu-item:active{background:var(--kuka-soft)}
+.fab-menu-item span{font-size:1rem}
+
+/* ===== Navigation menu ===== */
+.nav-menu-list{display:flex;flex-direction:column;gap:4px}
+.nav-menu-item{
+  display:flex;align-items:center;gap:14px;width:100%;
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);
+  padding:13px 14px;font-family:inherit;text-align:left;cursor:pointer;
+  transition:background .12s ease;
+}
+.nav-menu-item:active{background:var(--kuka-soft);border-color:var(--kuka-border)}
+.nav-menu-icon{font-size:1.4rem;flex-shrink:0;width:32px;text-align:center}
+.nav-menu-item>span:last-child{display:flex;flex-direction:column;min-width:0}
+.nav-menu-title{font-weight:600;font-size:.94rem;color:var(--ink)}
+.nav-menu-sub{font-size:.76rem;color:var(--ink-2);margin-top:1px}
 
 .field{margin-bottom:13px}
 .field:last-child{margin-bottom:0}
@@ -209,13 +299,14 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
 .preset-editor-row .add-btn{color:var(--kuka-dark);border-color:var(--kuka-border);background:var(--kuka-soft);font-weight:700}
 .preset-editor-row.new-row{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
 .preset-province-note{font-size:.72rem;color:var(--ink-2);margin:-2px 0 8px 2px}
-.field input,.field select,.month-switcher-row input{
+.field input,.field select,.field textarea,.month-switcher-row input{
   width:100%;font-family:inherit;font-size:1rem;
   padding:12px 12px;border:1px solid var(--line);
   border-radius:var(--r-sm);background:var(--surface-2);color:var(--ink);appearance:none;
   transition:border-color .15s ease, background .15s ease;
 }
-.field input:focus,.field select:focus,.month-switcher-row input:focus{
+.field textarea{resize:vertical;min-height:90px;line-height:1.45}
+.field input:focus,.field select:focus,.field textarea:focus,.month-switcher-row input:focus{
   outline:none;border-color:var(--kuka);background:var(--card);
   box-shadow:0 0 0 3px rgba(255,90,0,.12);
 }
@@ -683,19 +774,18 @@ try{
 <header>
   <div class="brand">
     <span class="brand-mark">KUKA OS</span>
-    <h1 id="headerTitle">Expense Reimbursement</h1>
+    <h1 id="headerTitle">Overview</h1>
     <div class="header-nav-wrap" id="headerNavWrap">
-      <button class="header-nav-btn" onclick="setView('ot')" aria-label="Overtime">🕐</button>
-      <button class="header-nav-btn" onclick="setView('settings')" aria-label="Settings">⚙️</button>
+      <button class="header-nav-btn" onclick="openNavMenu()" aria-label="Menu">☰</button>
     </div>
   </div>
-  <p id="headerTagline">Original-quality receipts · Saved on this device · Export as formal PDF</p>
+  <p id="headerTagline">All your Expense, OT, Tasks & Notes in one view</p>
 </header>
 
 <main>
   <div class="storage-note" id="storageNote"></div>
 
-  <div id="homeView">
+  <div id="homeView" style="display:none">
     <div class="month-switcher">
       <div class="month-switcher-label">Reporting Month</div>
       <div class="month-switcher-row">
@@ -773,6 +863,50 @@ try{
     <button class="btn btn-primary btn-sm" style="width:100%" onclick="sendOTApprovalEmail()">✉️ Send for Approval</button>
     <div class="attach-status" style="margin-top:6px">Opens your email app with the message ready — export the PDF first, then attach it manually before sending.</div>
   </div>
+
+  <div id="tasksView" style="display:none">
+    <div class="filter-chip-row" id="taskFilterRow"></div>
+    <div id="taskList"></div>
+    <div class="empty" id="taskEmptyState">No tasks yet — tap "Add Task" to begin.</div>
+    <button class="btn btn-primary" style="margin-top:14px" onclick="openTaskSheet()">＋ Add Task</button>
+  </div>
+
+  <div id="notesView" style="display:none">
+    <div class="search-wrap">
+      <input type="search" id="noteSearch" placeholder="Search notes, sites…" oninput="renderNotes()" autocomplete="off">
+      <button class="search-clear" id="noteSearchClearBtn" onclick="clearNoteSearch()" style="display:none">✕</button>
+    </div>
+    <div id="noteList"></div>
+    <div class="empty" id="noteEmptyState">No notes yet — tap "Add Note" to begin.</div>
+    <button class="btn btn-primary" style="margin-top:14px" onclick="openNoteSheet()">＋ Add Note</button>
+  </div>
+
+  <div id="calendarView">
+    <div class="card">
+      <div class="cal-header">
+        <button class="cal-nav-btn" onclick="calendarStepMonth(-1)" aria-label="Previous month">‹</button>
+        <span class="cal-month-label" id="calMonthLabel"></span>
+        <button class="cal-nav-btn" onclick="calendarStepMonth(1)" aria-label="Next month">›</button>
+      </div>
+      <div class="cal-weekdays"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+    <div class="cal-legend">
+      <span><i class="cal-dot cal-dot-expense"></i>Expense</span>
+      <span><i class="cal-dot cal-dot-ot"></i>OT</span>
+      <span><i class="cal-dot cal-dot-task"></i>Task</span>
+      <span><i class="cal-dot cal-dot-note"></i>Note</span>
+    </div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:12px;width:100%" onclick="calendarGoToday()">Go to Today</button>
+  </div>
+
+  <div class="fab-menu" id="fabMenu">
+    <button class="fab-menu-item" onclick="fabAdd('note')"><span>📝</span> Note</button>
+    <button class="fab-menu-item" onclick="fabAdd('task')"><span>📋</span> Task</button>
+    <button class="fab-menu-item" onclick="fabAdd('ot')"><span>🕐</span> OT Entry</button>
+    <button class="fab-menu-item" onclick="fabAdd('expense')"><span>💰</span> Expense</button>
+  </div>
+  <button class="fab" id="fabBtn" onclick="toggleFabMenu()" aria-label="Add">+</button>
 
   <div id="settingsView" style="display:none">
     <div class="section-label">Employee Details</div>
@@ -860,7 +994,7 @@ try{
   <div class="saved-note" id="savedNote"></div>
 </main>
 
-<div class="totalbar">
+<div class="totalbar" style="display:none">
   <div class="totalbar-inner">
     <div>
       <div class="t-label">TOTAL</div>
@@ -1035,6 +1169,119 @@ try{
   </div>
 </div>
 
+<!-- Add/Edit Task sheet -->
+<div class="overlay" id="taskOverlay">
+  <div class="sheet">
+    <h2><span id="taskSheetTitle">Add Task</span><button onclick="closeTaskSheet()" aria-label="Close">✕</button></h2>
+    <div class="field"><label>Task Title <span class="required-mark">*</span></label><input id="taskTitle" placeholder="e.g. Replace conveyor guard, commission KR180"></div>
+    <div class="field">
+      <label>Customer / Site</label>
+      <div class="tag-row" id="taskLocTag"></div>
+      <div class="pair-builder">
+        <div class="province-wrap" id="taskCompanyWrap">
+          <input id="taskCompanyInput" placeholder="Search or type company name/abbr…" autocomplete="off" oninput="filterTaskCompanies()" onfocus="filterTaskCompanies()">
+          <div class="province-list" id="taskCompanyList"></div>
+        </div>
+        <div class="province-wrap" id="taskProvinceWrapEl">
+          <input id="taskProvinceInput" placeholder="Then search & tap its province…" autocomplete="off" oninput="filterTaskProvinces()" onfocus="filterTaskProvinces()">
+          <div class="province-list" id="taskProvinceListEl"></div>
+        </div>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Due Date</label><input id="taskDueDate" type="date"></div>
+      <div class="field">
+        <label>Status</label>
+        <select id="taskStatus">
+          <option value="not_started">Not Started</option>
+          <option value="in_progress">In Progress</option>
+          <option value="done">Done</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Details</label><input id="taskDetails" placeholder="Optional notes about this task"></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeTaskSheet()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTask()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Note sheet -->
+<div class="overlay" id="noteOverlay">
+  <div class="sheet">
+    <h2><span id="noteSheetTitle">Add Note</span><button onclick="closeNoteSheet()" aria-label="Close">✕</button></h2>
+    <div class="field"><label>Title <span class="required-mark">*</span></label><input id="noteTitle" placeholder="e.g. DENSO robot 3 encoder fault"></div>
+    <div class="field">
+      <label>Customer / Site <span style="font-weight:400;color:var(--ink-2);text-transform:none;letter-spacing:0;font-size:.78rem">(optional)</span></label>
+      <div class="tag-row" id="noteLocTag"></div>
+      <div class="pair-builder">
+        <div class="province-wrap" id="noteCompanyWrap">
+          <input id="noteCompanyInput" placeholder="Search or type company name/abbr…" autocomplete="off" oninput="filterNoteCompanies()" onfocus="filterNoteCompanies()">
+          <div class="province-list" id="noteCompanyList"></div>
+        </div>
+        <div class="province-wrap" id="noteProvinceWrapEl">
+          <input id="noteProvinceInput" placeholder="Then search & tap its province…" autocomplete="off" oninput="filterNoteProvinces()" onfocus="filterNoteProvinces()">
+          <div class="province-list" id="noteProvinceListEl"></div>
+        </div>
+      </div>
+    </div>
+    <div class="field"><label>Date</label><input id="noteDate" type="date"></div>
+    <div class="field"><label>Content</label><textarea id="noteContent" rows="5" placeholder="Technical notes, what was found, what was done…"></textarea></div>
+    <div class="field">
+      <label>Photos</label>
+      <div class="extra-receipt-grid" id="noteImageGrid"></div>
+      <input type="file" id="noteImageFile" accept="image/*" style="display:none">
+      <button type="button" class="btn btn-ghost btn-sm" style="width:100%" onclick="document.getElementById('noteImageFile').click()">📷 Add Photo</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeNoteSheet()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNote()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Navigation menu -->
+<div class="overlay" id="navMenuOverlay" onclick="if(event.target===this)closeNavMenu()">
+  <div class="sheet">
+    <h2><span>Menu</span><button onclick="closeNavMenu()" aria-label="Close">✕</button></h2>
+    <div class="nav-menu-list">
+      <button class="nav-menu-item" onclick="navMenuGo('home')">
+        <span class="nav-menu-icon">📅</span>
+        <span><span class="nav-menu-title">Overview</span><span class="nav-menu-sub">Calendar of everything</span></span>
+      </button>
+      <button class="nav-menu-item" onclick="navMenuGo('expense')">
+        <span class="nav-menu-icon">💰</span>
+        <span><span class="nav-menu-title">Expense</span><span class="nav-menu-sub">Reimbursement & receipts</span></span>
+      </button>
+      <button class="nav-menu-item" onclick="navMenuGo('ot')">
+        <span class="nav-menu-icon">🕐</span>
+        <span><span class="nav-menu-title">Overtime</span><span class="nav-menu-sub">OT hours & approval form</span></span>
+      </button>
+      <button class="nav-menu-item" onclick="navMenuGo('tasks')">
+        <span class="nav-menu-icon">📋</span>
+        <span><span class="nav-menu-title">Tasks</span><span class="nav-menu-sub">Jobs & schedule by site</span></span>
+      </button>
+      <button class="nav-menu-item" onclick="navMenuGo('notes')">
+        <span class="nav-menu-icon">📝</span>
+        <span><span class="nav-menu-title">Notes</span><span class="nav-menu-sub">Site technical notes</span></span>
+      </button>
+      <button class="nav-menu-item" onclick="navMenuGo('settings')">
+        <span class="nav-menu-icon">⚙️</span>
+        <span><span class="nav-menu-title">Settings</span><span class="nav-menu-sub">Profile, backup, signature</span></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Calendar day detail popup -->
+<div class="overlay" id="calDayOverlay" onclick="if(event.target===this)closeCalDay()">
+  <div class="sheet">
+    <h2><span id="calDayTitle">Date</span><button onclick="closeCalDay()" aria-label="Close">✕</button></h2>
+    <div id="calDayList"></div>
+  </div>
+</div>
+
 <!-- Spending summary modal -->
 <div class="overlay" id="summaryOverlay" onclick="if(event.target===this)closeSummary()">
   <div class="sheet" style="max-height:88vh">
@@ -1127,7 +1374,7 @@ const rstore={
 
 const KEY='kuka-reimb-v1';
 const PKEY='kuka-reimb-profile';
-let state={emp:{name:'',id:'',month:''},entries:[],months:{},otEntries:[],otMonths:{}};
+let state={emp:{name:'',id:'',month:''},entries:[],months:{},otEntries:[],otMonths:{},tasks:[],notes:[]};
 let receipts={};
 let editIndex=null;
 let pendingReceipt=null;
@@ -1371,6 +1618,25 @@ document.addEventListener('click',ev=>{
     const opl=document.getElementById('otProvinceListEl');
     if(opl)opl.classList.remove('open');
   }
+  if(!ev.target.closest('#taskCompanyWrap')){
+    const tcl=document.getElementById('taskCompanyList');
+    if(tcl)tcl.classList.remove('open');
+  }
+  if(!ev.target.closest('#taskProvinceWrapEl')){
+    const tpl=document.getElementById('taskProvinceListEl');
+    if(tpl)tpl.classList.remove('open');
+  }
+  if(!ev.target.closest('#noteCompanyWrap')){
+    const ncl=document.getElementById('noteCompanyList');
+    if(ncl)ncl.classList.remove('open');
+  }
+  if(!ev.target.closest('#noteProvinceWrapEl')){
+    const npl=document.getElementById('noteProvinceListEl');
+    if(npl)npl.classList.remove('open');
+  }
+  if(!ev.target.closest('#fabBtn')&&!ev.target.closest('#fabMenu')){
+    closeFabMenu();
+  }
 });
 document.addEventListener('keydown',ev=>{
   if(ev.key!=='Escape')return;
@@ -1379,13 +1645,18 @@ document.addEventListener('keydown',ev=>{
     ['receiptPickerOverlay',closeReceiptPicker],
     ['bulkAttachOverlay',closeBulkAttach],
     ['otOverlay',closeOTSheet],
+    ['taskOverlay',closeTaskSheet],
+    ['noteOverlay',closeNoteSheet],
     ['summaryOverlay',closeSummary],
+    ['calDayOverlay',closeCalDay],
+    ['navMenuOverlay',closeNavMenu],
     ['viewer',closeViewer]
   ];
   for(const[id,fn]of closers){
     const el=document.getElementById(id);
     if(el&&el.classList.contains('open')){fn();return;}
   }
+  if(document.getElementById('fabMenu').classList.contains('open'))closeFabMenu();
 });
 
 /* ---------- init / load ---------- */
@@ -1414,25 +1685,55 @@ async function initThemeFromStorage(){
   }catch(e){}
   applyThemeSwitchUI();
 }
+function toggleFabMenu(){
+  const menu=document.getElementById('fabMenu');
+  const btn=document.getElementById('fabBtn');
+  const isOpen=menu.classList.contains('open');
+  menu.classList.toggle('open',!isOpen);
+  btn.classList.toggle('open',!isOpen);
+}
+function closeFabMenu(){
+  document.getElementById('fabMenu').classList.remove('open');
+  document.getElementById('fabBtn').classList.remove('open');
+}
+function fabAdd(type){
+  closeFabMenu();
+  if(type==='expense'){setView('expense');openSheet();}
+  else if(type==='ot'){setView('ot');openOTSheet();}
+  else if(type==='task'){setView('tasks');openTaskSheet();}
+  else if(type==='note'){setView('notes');openNoteSheet();}
+}
+function openNavMenu(){document.getElementById('navMenuOverlay').classList.add('open');}
+function closeNavMenu(){document.getElementById('navMenuOverlay').classList.remove('open');}
+function navMenuGo(view){closeNavMenu();setView(view);}
 function setView(view){
   currentView=view;
-  document.getElementById('homeView').style.display=view==='home'?'block':'none';
+  document.getElementById('homeView').style.display=view==='expense'?'block':'none';
   document.getElementById('otView').style.display=view==='ot'?'block':'none';
   document.getElementById('settingsView').style.display=view==='settings'?'block':'none';
-  document.querySelector('.totalbar').style.display=view==='home'?'block':'none';
+  document.getElementById('tasksView').style.display=view==='tasks'?'block':'none';
+  document.getElementById('notesView').style.display=view==='notes'?'block':'none';
+  document.getElementById('calendarView').style.display=view==='home'?'block':'none';
+  document.querySelector('.totalbar').style.display=view==='expense'?'block':'none';
   document.getElementById('otTotalbar').style.display=view==='ot'?'block':'none';
-  const navWrap=document.getElementById('headerNavWrap');
-  if(view==='home'){
-    navWrap.innerHTML=`<button class="header-nav-btn" onclick="setView('ot')" aria-label="Overtime">🕐</button><button class="header-nav-btn" onclick="setView('settings')" aria-label="Settings">⚙️</button>`;
-  }else{
-    navWrap.innerHTML=`<button class="header-nav-btn" onclick="setView('home')" aria-label="Back">←</button>`;
-  }
-  document.getElementById('headerTitle').textContent=view==='home'?'Expense Reimbursement':(view==='ot'?'Overtime (OT)':'Settings');
-  document.getElementById('headerTagline').textContent=view==='home'
-    ?'Original-quality receipts · Saved on this device · Export as formal PDF'
-    :(view==='ot'?'Track OT hours and export the approval form':'Employee details, approval contact, backup & storage');
+  const titles={home:'Overview',expense:'Expense Reimbursement',ot:'Overtime (OT)',settings:'Settings',tasks:'Tasks & Schedule',notes:'Site Notes'};
+  const taglines={
+    home:'All your Expense, OT, Tasks & Notes in one view',
+    expense:'Original-quality receipts · Saved on this device · Export as formal PDF',
+    ot:'Track OT hours and export the approval form',
+    settings:'Employee details, approval contact, backup & storage',
+    tasks:'Track jobs by customer site and due date',
+    notes:'Technical notes per site, with photos'
+  };
+  document.getElementById('headerTitle').textContent=titles[view]||'Overview';
+  document.getElementById('headerTagline').textContent=taglines[view]||'';
   window.scrollTo(0,0);
   if(view==='settings')requestAnimationFrame(()=>requestAnimationFrame(initSignaturePad));
+  if(view==='home')renderCalendar();
+  if(view==='tasks')renderTasks();
+  if(view==='notes')renderNotes();
+  document.getElementById('fabBtn').style.display=view==='home'?'flex':'none';
+  closeFabMenu();
 }
 // Step the reporting month forward/back by one, so switching months is one tap on mobile
 async function stepMonth(delta){
@@ -1534,6 +1835,8 @@ async function load(){
   if(!state.months)state.months={};
   if(!state.otMonths)state.otMonths={};
   if(!Array.isArray(state.otEntries))state.otEntries=[];
+  if(!Array.isArray(state.tasks))state.tasks=[];
+  if(!Array.isArray(state.notes))state.notes=[];
   // Migrate older single-month data (no archive yet) into the new per-month structure
   if(Array.isArray(state.entries)&&state.entries.length&&Object.keys(state.months).length===0){
     state.months[monthKeyOf(state.emp&&state.emp.month)]=state.entries;
@@ -1541,6 +1844,7 @@ async function load(){
   switchMonth(state.emp&&state.emp.month);
   switchOTMonth(state.emp&&state.emp.otMonth);
   await ensureReceiptsLoaded(state.entries);
+  await ensureNoteImagesLoaded();
   document.getElementById('empName').value=state.emp.name||'';
   document.getElementById('empId').value=state.emp.id||'';
   document.getElementById('empPosition').value=state.emp.position||'';
@@ -1556,6 +1860,9 @@ async function load(){
   document.getElementById('otMonthInput').value=state.emp.otMonth||'';
   render();
   renderOT();
+  renderTasks();
+  renderNotes();
+  setView('home');
 }
 function wrapReceipt(v){
   if(v instanceof Blob)return{blob:v,url:URL.createObjectURL(v)};
@@ -2293,6 +2600,9 @@ function availableBackupYears(){
     if(k==='_unspecified')hasUnspecified=true;
     else years.add(k.slice(0,4));
   });
+  if(years.size===0&&!hasUnspecified&&(state.tasks.length||state.notes.length)){
+    years.add(String(new Date().getFullYear()));
+  }
   return{years:Array.from(years).sort().reverse(),hasUnspecified};
 }
 function populateBackupYearOptions(){
@@ -2355,7 +2665,17 @@ async function exportBackup(){
       }
     }
   }
-  const payload={version:5,exported:new Date().toISOString(),state:{emp:state.emp,months:monthsSubset,otMonths:otMonthsSubset},receipts:rc};
+  await ensureNoteImagesLoaded();
+  for(const n of state.notes){
+    if(Array.isArray(n.imageIds)){
+      for(const rid of n.imageIds){
+        if(receipts[rid]){
+          rc[rid]=receipts[rid].blob?await blobToDataUrl(receipts[rid].blob):receipts[rid].dataUrl;
+        }
+      }
+    }
+  }
+  const payload={version:6,exported:new Date().toISOString(),state:{emp:state.emp,months:monthsSubset,otMonths:otMonthsSubset,tasks:state.tasks,notes:state.notes},receipts:rc};
   const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
@@ -2423,9 +2743,15 @@ document.getElementById('importFile').addEventListener('change',ev=>{
         ?p.state.months
         :(p.state&&Array.isArray(p.state.entries)?{[monthKeyOf(p.state.emp&&p.state.emp.month)]:p.state.entries}:{});
       const importedOTMonths=(p.state&&p.state.otMonths&&typeof p.state.otMonths==='object')?p.state.otMonths:{};
+      const importedTasks=(p.state&&Array.isArray(p.state.tasks))?p.state.tasks:[];
+      const importedNotes=(p.state&&Array.isArray(p.state.notes))?p.state.notes:[];
       const keysInFile=Object.keys(importedMonths).filter(k=>importedMonths[k]&&importedMonths[k].length>0);
       const otKeysInFile=Object.keys(importedOTMonths).filter(k=>importedOTMonths[k]&&importedOTMonths[k].length>0);
-      if(keysInFile.length===0&&otKeysInFile.length===0){alert('This backup file has no data to restore.');return;}
+      const existingTaskIds=new Set(state.tasks.map(t=>t.id));
+      const existingNoteIds=new Set(state.notes.map(n=>n.id));
+      const newTasks=importedTasks.filter(t=>t.id&&!existingTaskIds.has(t.id));
+      const newNotes=importedNotes.filter(n=>n.id&&!existingNoteIds.has(n.id));
+      if(keysInFile.length===0&&otKeysInFile.length===0&&newTasks.length===0&&newNotes.length===0){alert('This backup file has no new data to restore.');return;}
       // Safe merge: never overwrite months that already have data on this device
       const newKeys=keysInFile.filter(k=>!state.months[k]||state.months[k].length===0);
       const skipKeys=keysInFile.filter(k=>state.months[k]&&state.months[k].length>0);
@@ -2435,12 +2761,16 @@ document.getElementById('importFile').addEventListener('change',ev=>{
       let msg='';
       if(keysInFile.length)msg+=`Expense: ${keysInFile.length} month(s) in file.\n`;
       if(otKeysInFile.length)msg+=`OT: ${otKeysInFile.length} month(s) in file.\n`;
+      if(importedTasks.length)msg+=`Tasks: ${importedTasks.length} in file.\n`;
+      if(importedNotes.length)msg+=`Notes: ${importedNotes.length} in file.\n`;
       msg+='\n';
       if(newKeys.length)msg+=`✓ Expense will be added: ${newKeys.map(nameOf).join(', ')}\n`;
       if(skipKeys.length)msg+=`⚠ Expense already exists, SKIPPED: ${skipKeys.map(nameOf).join(', ')}\n`;
       if(newOTKeys.length)msg+=`✓ OT will be added: ${newOTKeys.map(nameOf).join(', ')}\n`;
       if(skipOTKeys.length)msg+=`⚠ OT already exists, SKIPPED: ${skipOTKeys.map(nameOf).join(', ')}\n`;
-      if(newKeys.length===0&&newOTKeys.length===0){alert(msg+'\nNothing new to restore — everything in this file already exists on this device.');return;}
+      if(newTasks.length)msg+=`✓ Tasks will be added: ${newTasks.length}\n`;
+      if(newNotes.length)msg+=`✓ Notes will be added: ${newNotes.length}\n`;
+      if(newKeys.length===0&&newOTKeys.length===0&&newTasks.length===0&&newNotes.length===0){alert(msg+'\nNothing new to restore — everything in this file already exists on this device.');return;}
       msg+='\nContinue?';
       if(!confirm(msg))return;
       if(p.state&&p.state.emp){
@@ -2504,6 +2834,31 @@ document.getElementById('importFile').addEventListener('change',ev=>{
         items.forEach(e=>{if(!e.id)e.id=uid();});
         state.otMonths[key]=items;
       }
+      for(const t of newTasks){
+        state.tasks.push(t);
+      }
+      for(const n of newNotes){
+        const keptImages=[];
+        if(Array.isArray(n.imageIds)){
+          for(const rid of n.imageIds){
+            const du=p.receipts&&p.receipts[rid];
+            if(!du)continue;
+            try{
+              if(MODE==='idb'){
+                const blob=await(await fetch(du)).blob();
+                await rstore.set(rid,blob);
+                receipts[rid]={blob,url:URL.createObjectURL(blob)};
+              }else{
+                await rstore.set(rid,du);
+                receipts[rid]={dataUrl:du,url:du};
+              }
+              keptImages.push(rid);
+            }catch(err){missingImages=true;}
+          }
+        }
+        n.imageIds=keptImages;
+        state.notes.push(n);
+      }
       switchMonth(state.emp&&state.emp.month);
       switchOTMonth(state.emp&&state.emp.otMonth);
       try{await kv.set(KEY,JSON.stringify(state));}catch(err){}
@@ -2523,9 +2878,11 @@ document.getElementById('importFile').addEventListener('change',ev=>{
       document.getElementById('otMonthInput').value=state.emp.otMonth||'';
       render();
       renderOT();
+      renderTasks();
+      renderNotes();
       renderSavedSignature();
       updateStorageUsage();
-      noteMsg((missingImages?'✓ Restored (some images skipped — storage full) — ':'✓ ')+`Added ${newKeys.length} expense + ${newOTKeys.length} OT month(s)`);
+      noteMsg((missingImages?'✓ Restored (some images skipped — storage full) — ':'✓ ')+`Added ${newKeys.length} expense + ${newOTKeys.length} OT month(s), ${newTasks.length} task(s), ${newNotes.length} note(s)`);
     }catch(e){alert('Invalid file — please select a .json file exported from this app.');}
   };
   reader.readAsText(file);
@@ -3077,6 +3434,463 @@ function finalizeOTLocation(name,province){
 }
 
 document.getElementById('otTimeOut').addEventListener('input',updateOTCalcPreview);
+
+/* =========================================================
+   Generic single-location picker engine — used by Task and
+   Note sheets (OT keeps its own already-proven implementation
+   above, untouched, to avoid any regression risk).
+========================================================= */
+const locPickerState={};
+function locPickerFilterCompanies(scope){
+  const raw=document.getElementById(scope+'CompanyInput').value.trim();
+  const val=raw.toLowerCase();
+  const list=document.getElementById(scope+'CompanyList');
+  const presets=state.emp.locPresets;
+  const matches=val?presets.filter(p=>p.name.toLowerCase().includes(val)||(p.abbr||'').toLowerCase().includes(val)):presets;
+  if(matches.length===0){
+    list.innerHTML=val
+      ?`<div class="province-empty">No match in your saved list — search a Province below to add "${esc(raw)}" as a new company</div>`
+      :'<div class="province-empty">Type to search your saved companies, or enter a new one</div>';
+  }else{
+    list.innerHTML=matches.map(p=>`<div class="province-item" onclick="locPickerSelectCompany('${scope}','${p.name.replace(/'/g,"\\'")}')">${esc(p.name)} <span style="color:var(--ink-2);font-family:'IBM Plex Mono',monospace;font-size:.75em">(${esc(p.abbr)})</span></div>`).join('');
+  }
+  list.classList.add('open');
+}
+function locPickerSelectCompany(scope,name){
+  document.getElementById(scope+'CompanyList').classList.remove('open');
+  document.getElementById(scope+'CompanyInput').value=name;
+  const preset=state.emp.locPresets.find(p=>p.name.toLowerCase()===name.toLowerCase());
+  if(preset&&preset.province){
+    locPickerFinalize(scope,name,preset.province);
+  }else{
+    document.getElementById(scope+'ProvinceInput').value='';
+    document.getElementById(scope+'ProvinceInput').focus();
+  }
+}
+function locPickerFilterProvinces(scope){
+  const val=document.getElementById(scope+'ProvinceInput').value.trim().toLowerCase();
+  const list=document.getElementById(scope+'ProvinceListEl');
+  const matches=val?THAI_PROVINCES.filter(p=>p.toLowerCase().includes(val)):THAI_PROVINCES;
+  list.innerHTML=matches.length
+    ?matches.map(p=>`<div class="province-item" onclick="locPickerSelectProvince('${scope}','${p}')">${esc(p)}</div>`).join('')
+    :'<div class="province-empty">No matching province</div>';
+  list.classList.add('open');
+}
+function locPickerSelectProvince(scope,p){
+  document.getElementById(scope+'ProvinceInput').value=p;
+  document.getElementById(scope+'ProvinceListEl').classList.remove('open');
+  const name=document.getElementById(scope+'CompanyInput').value.trim();
+  if(!name){
+    alert('Please enter or select a company name first, then choose its province.');
+    document.getElementById(scope+'CompanyInput').focus();
+    return;
+  }
+  locPickerFinalize(scope,name,p);
+}
+function locPickerFinalize(scope,name,province){
+  let preset=state.emp.locPresets.find(p=>p.name.toLowerCase()===name.toLowerCase());
+  const canonicalName=preset?preset.name:name;
+  if(!preset){
+    const suggested=autoAbbrev(name);
+    const typed=prompt(`New company: "${name}"\n\nSet a short abbreviation for the compact tag view (e.g. DENSO):`,suggested);
+    const abbr=(typed===null?suggested:(typed.trim()||suggested)).toUpperCase();
+    preset={name,abbr,province};
+    state.emp.locPresets.push(preset);
+  }else{
+    preset.province=province;
+  }
+  persistProfile();
+  locPickerState[scope]={name:canonicalName,province};
+  locPickerRenderTag(scope);
+  document.getElementById(scope+'CompanyInput').value='';
+  document.getElementById(scope+'ProvinceInput').value='';
+}
+function locPickerRenderTag(scope){
+  const wrap=document.getElementById(scope+'LocTag');
+  if(!wrap)return;
+  const sel=locPickerState[scope];
+  if(!sel){
+    wrap.innerHTML='<div class="tag-empty">No site selected yet — search a company below, then its province</div>';
+    return;
+  }
+  const preset=state.emp.locPresets.find(p=>p.name.toLowerCase()===sel.name.toLowerCase());
+  const shortName=preset?preset.abbr:sel.name;
+  const provinceAbbr=PROVINCE_ABBR[sel.province]||'';
+  const display=shortName+(provinceAbbr?`(${provinceAbbr})`:'');
+  wrap.innerHTML=`<span class="tag-pill" title="${esc(sel.name)}${sel.province?', '+esc(sel.province):''}">${esc(display)}<span class="tag-remove" onclick="locPickerRemove('${scope}')">✕</span></span>`;
+}
+function locPickerRemove(scope){
+  locPickerState[scope]=null;
+  locPickerRenderTag(scope);
+}
+function filterTaskCompanies(){locPickerFilterCompanies('task');}
+function filterTaskProvinces(){locPickerFilterProvinces('task');}
+function filterNoteCompanies(){locPickerFilterCompanies('note');}
+function filterNoteProvinces(){locPickerFilterProvinces('note');}
+
+/* =========================================================
+   Tasks & Schedule
+========================================================= */
+let taskEditIndex=null;
+let taskStatusFilter='all';
+const TASK_STATUS_LABELS={not_started:'Not Started',in_progress:'In Progress',done:'Done'};
+function openTaskSheet(i=null){
+  taskEditIndex=i;
+  document.getElementById('taskSheetTitle').textContent=i===null?'Add Task':'Edit Task';
+  const t=i===null?{title:'',location:null,dueDate:'',status:'not_started',details:''}:state.tasks[i];
+  document.getElementById('taskTitle').value=t.title||'';
+  document.getElementById('taskDueDate').value=t.dueDate||'';
+  document.getElementById('taskStatus').value=t.status||'not_started';
+  document.getElementById('taskDetails').value=t.details||'';
+  document.getElementById('taskCompanyInput').value='';
+  document.getElementById('taskProvinceInput').value='';
+  locPickerState.task=t.location?{name:t.location.name,province:t.location.province}:null;
+  locPickerRenderTag('task');
+  document.getElementById('taskOverlay').classList.add('open');
+}
+function closeTaskSheet(){document.getElementById('taskOverlay').classList.remove('open');}
+function saveTask(){
+  const title=document.getElementById('taskTitle').value.trim();
+  const dueDate=document.getElementById('taskDueDate').value;
+  const status=document.getElementById('taskStatus').value;
+  const details=document.getElementById('taskDetails').value.trim();
+  let leftoverCompany=document.getElementById('taskCompanyInput').value.trim();
+  let leftoverProvince=document.getElementById('taskProvinceInput').value.trim();
+  const provinceMatch=THAI_PROVINCES.find(p=>p.toLowerCase()===leftoverProvince.toLowerCase());
+  if(leftoverCompany&&provinceMatch){
+    locPickerFinalize('task',leftoverCompany,provinceMatch);
+    leftoverCompany='';leftoverProvince='';
+  }
+  if(!title){alert('Please enter a task title.');document.getElementById('taskTitle').focus();return;}
+  if(leftoverCompany||leftoverProvince){
+    alert(`You started adding a site (${leftoverCompany||'no name yet'} / ${leftoverProvince||'no province yet'}) but haven't finished pairing it with a province. Please complete it or clear the box before saving.`);
+    return;
+  }
+  const sel=locPickerState.task;
+  const t={
+    id:taskEditIndex===null?uid():state.tasks[taskEditIndex].id,
+    title,location:sel?{name:sel.name,province:sel.province}:null,
+    dueDate,status,details,
+    createdAt:taskEditIndex===null?new Date().toISOString():state.tasks[taskEditIndex].createdAt
+  };
+  if(taskEditIndex===null)state.tasks.push(t);else state.tasks[taskEditIndex]=t;
+  persist();renderTasks();
+  closeTaskSheet();
+}
+function delTask(i){
+  if(!confirm('Delete this task?'))return;
+  state.tasks.splice(i,1);persist();renderTasks();
+}
+function setTaskStatusFilter(key){taskStatusFilter=key;renderTasks();}
+function renderTaskFilterRow(){
+  const row=document.getElementById('taskFilterRow');
+  if(!row)return;
+  const counts={not_started:0,in_progress:0,done:0};
+  state.tasks.forEach(t=>{const s=t.status||'not_started';counts[s]=(counts[s]||0)+1;});
+  const opts=[['all','All'],['not_started','Not Started'],['in_progress','In Progress'],['done','Done']];
+  row.innerHTML=opts.map(([key,label])=>
+    `<button type="button" class="filter-chip${taskStatusFilter===key?' active':''}" onclick="setTaskStatusFilter('${key}')">${label}${key!=='all'&&counts[key]?` (${counts[key]})`:''}</button>`
+  ).join('');
+}
+function renderTasks(){
+  const list=document.getElementById('taskList');
+  if(!list)return;
+  list.innerHTML='';
+  const visible=state.tasks.filter(t=>taskStatusFilter==='all'||((t.status||'not_started')===taskStatusFilter));
+  const sorted=visible.slice().sort((a,b)=>{
+    const aDone=a.status==='done',bDone=b.status==='done';
+    if(aDone!==bDone)return aDone?1:-1;
+    if(!a.dueDate&&!b.dueDate)return 0;
+    if(!a.dueDate)return 1;
+    if(!b.dueDate)return-1;
+    return a.dueDate.localeCompare(b.dueDate);
+  });
+  document.getElementById('taskEmptyState').style.display=state.tasks.length?'none':'block';
+  const statusColor={not_started:'draft',in_progress:'submitted',done:'approved'};
+  sorted.forEach(t=>{
+    const i=state.tasks.indexOf(t);
+    const div=document.createElement('div');
+    div.className='entry';
+    div.innerHTML=`
+      <div class="entry-date">${t.dueDate?fmtDateShort(t.dueDate):'—'}</div>
+      <div class="entry-body">
+        <div class="entry-top-row">
+          <div class="entry-desc"${t.status==='done'?' style="text-decoration:line-through;color:var(--ink-2)"':''}>${esc(t.title)}</div>
+          <span class="status-badge status-${statusColor[t.status]||'draft'}">${TASK_STATUS_LABELS[t.status]||'Not Started'}</span>
+        </div>
+        ${t.location?`<div class="entry-purpose">📍 ${esc(otLocationDisplay(t.location))}</div>`:''}
+        ${t.details?`<div class="entry-purpose">${esc(t.details)}</div>`:''}
+      </div>
+      <div class="entry-actions">
+        <button class="icon-btn" onclick="openTaskSheet(${i})" aria-label="Edit">✎</button>
+        <button class="icon-btn" onclick="delTask(${i})" aria-label="Delete">🗑</button>
+      </div>`;
+    list.appendChild(div);
+  });
+  renderTaskFilterRow();
+  populateBackupYearOptions();
+}
+
+/* =========================================================
+   Site Notes
+========================================================= */
+let noteEditIndex=null;
+let pendingNoteImages=[];
+let existingNoteImageIds=[];
+let pendingNoteImageRemovals=[];
+async function ensureNoteImagesLoaded(){
+  for(const n of state.notes){
+    if(Array.isArray(n.imageIds)){
+      for(const rid of n.imageIds){
+        if(!receipts[rid]){
+          const v=await rstore.get(rid).catch(()=>null);
+          if(v)receipts[rid]=wrapReceipt(v);
+        }
+      }
+    }
+  }
+}
+function renderNoteImageGrid(){
+  const grid=document.getElementById('noteImageGrid');
+  if(!grid)return;
+  const keptExisting=existingNoteImageIds.filter(id=>!pendingNoteImageRemovals.includes(id)&&receipts[id]);
+  let html='';
+  keptExisting.forEach(id=>{
+    html+=`<div class="extra-thumb"><img src="${receipts[id].url}" onclick="openViewerUrl('${receipts[id].url}')" alt=""><button type="button" class="extra-remove" onclick="removeExistingNoteImage('${id}')">✕</button></div>`;
+  });
+  pendingNoteImages.forEach((p,idx)=>{
+    html+=`<div class="extra-thumb"><img src="${p.url}" onclick="openViewerUrl('${p.url}')" alt=""><button type="button" class="extra-remove" onclick="removeStagedNoteImage(${idx})">✕</button></div>`;
+  });
+  grid.innerHTML=html;
+}
+function removeExistingNoteImage(id){pendingNoteImageRemovals.push(id);renderNoteImageGrid();}
+function removeStagedNoteImage(idx){pendingNoteImages.splice(idx,1);renderNoteImageGrid();}
+document.getElementById('noteImageFile').addEventListener('change',async ev=>{
+  const file=ev.target.files[0];
+  if(!file)return;
+  try{
+    let staged;
+    if(MODE==='idb'){
+      staged={blob:file,url:URL.createObjectURL(file)};
+    }else{
+      const cap=MODE==='claude'?3500000:450000;
+      const maxDim=MODE==='claude'?1600:1100;
+      const dataUrl=await compressImage(file,maxDim,cap);
+      staged={dataUrl,url:dataUrl};
+    }
+    pendingNoteImages.push(staged);
+    renderNoteImageGrid();
+  }catch(e){alert('Could not read image — please try again.');}
+  ev.target.value='';
+});
+function openNoteSheet(i=null){
+  noteEditIndex=i;
+  document.getElementById('noteSheetTitle').textContent=i===null?'Add Note':'Edit Note';
+  const n=i===null?{title:'',location:null,date:'',content:'',imageIds:[]}:state.notes[i];
+  document.getElementById('noteTitle').value=n.title||'';
+  document.getElementById('noteDate').value=n.date||'';
+  document.getElementById('noteContent').value=n.content||'';
+  document.getElementById('noteCompanyInput').value='';
+  document.getElementById('noteProvinceInput').value='';
+  locPickerState.note=n.location?{name:n.location.name,province:n.location.province}:null;
+  locPickerRenderTag('note');
+  pendingNoteImages=[];pendingNoteImageRemovals=[];
+  existingNoteImageIds=(i!==null&&Array.isArray(n.imageIds))?n.imageIds.slice():[];
+  renderNoteImageGrid();
+  document.getElementById('noteOverlay').classList.add('open');
+}
+function closeNoteSheet(){document.getElementById('noteOverlay').classList.remove('open');}
+async function saveNote(){
+  const title=document.getElementById('noteTitle').value.trim();
+  const date=document.getElementById('noteDate').value;
+  const content=document.getElementById('noteContent').value.trim();
+  let leftoverCompany=document.getElementById('noteCompanyInput').value.trim();
+  let leftoverProvince=document.getElementById('noteProvinceInput').value.trim();
+  const provinceMatch=THAI_PROVINCES.find(p=>p.toLowerCase()===leftoverProvince.toLowerCase());
+  if(leftoverCompany&&provinceMatch){
+    locPickerFinalize('note',leftoverCompany,provinceMatch);
+    leftoverCompany='';leftoverProvince='';
+  }
+  if(!title){alert('Please enter a note title.');document.getElementById('noteTitle').focus();return;}
+  if(leftoverCompany||leftoverProvince){
+    alert(`You started adding a site (${leftoverCompany||'no name yet'} / ${leftoverProvince||'no province yet'}) but haven't finished pairing it with a province. Please complete it or clear the box before saving.`);
+    return;
+  }
+  const sel=locPickerState.note;
+  const n={
+    id:noteEditIndex===null?uid():state.notes[noteEditIndex].id,
+    title,location:sel?{name:sel.name,province:sel.province}:null,
+    date,content,
+    imageIds:(noteEditIndex===null?[]:(state.notes[noteEditIndex].imageIds||[])).slice(),
+    createdAt:noteEditIndex===null?new Date().toISOString():state.notes[noteEditIndex].createdAt
+  };
+  try{
+    for(const rid of pendingNoteImageRemovals){
+      await rstore.del(rid);delete receipts[rid];
+      n.imageIds=n.imageIds.filter(x=>x!==rid);
+    }
+    for(const staged of pendingNoteImages){
+      const newId=uid();
+      await rstore.set(newId,staged.blob||staged.dataUrl);
+      receipts[newId]=staged;
+      n.imageIds.push(newId);
+    }
+  }catch(err){
+    alert('Could not save one or more photos (storage may be full) — the note will be saved with whatever did save successfully.');
+  }
+  if(noteEditIndex===null)state.notes.push(n);else state.notes[noteEditIndex]=n;
+  state.notes.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  persist();renderNotes();
+  closeNoteSheet();
+}
+async function delNote(i){
+  if(!confirm('Delete this note?'))return;
+  const n=state.notes[i];
+  if(Array.isArray(n.imageIds)){
+    for(const rid of n.imageIds){await rstore.del(rid);delete receipts[rid];}
+  }
+  state.notes.splice(i,1);persist();renderNotes();
+}
+function clearNoteSearch(){document.getElementById('noteSearch').value='';renderNotes();}
+function renderNotes(){
+  const list=document.getElementById('noteList');
+  if(!list)return;
+  list.innerHTML='';
+  const searchEl=document.getElementById('noteSearch');
+  const searchTerm=(searchEl&&searchEl.value||'').trim().toLowerCase();
+  const clearBtn=document.getElementById('noteSearchClearBtn');
+  if(clearBtn)clearBtn.style.display=searchTerm?'flex':'none';
+  const visible=state.notes.filter(n=>{
+    if(!searchTerm)return true;
+    const hay=[n.title,n.content,n.location?otLocationDisplay(n.location):''].filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(searchTerm);
+  });
+  document.getElementById('noteEmptyState').style.display=state.notes.length?'none':'block';
+  visible.forEach(n=>{
+    const i=state.notes.indexOf(n);
+    const rid=Array.isArray(n.imageIds)&&n.imageIds.length?n.imageIds[0]:null;
+    const thumb=rid&&receipts[rid]
+      ?`<div class="entry-thumb" onclick="openViewer('${rid}')"><img src="${receipts[rid].url}" alt="">${n.imageIds.length>1?`+${n.imageIds.length-1} more`:'View photo'}</div>`
+      :'';
+    const div=document.createElement('div');
+    div.className='entry';
+    div.innerHTML=`
+      <div class="entry-date">${n.date?fmtDateShort(n.date):'—'}</div>
+      <div class="entry-body">
+        <div class="entry-desc">${esc(n.title)}</div>
+        ${n.location?`<div class="entry-purpose">📍 ${esc(otLocationDisplay(n.location))}</div>`:''}
+        ${n.content?`<div class="entry-purpose">${esc(n.content.length>140?n.content.slice(0,140)+'…':n.content)}</div>`:''}
+        ${thumb}
+      </div>
+      <div class="entry-actions">
+        <button class="icon-btn" onclick="openNoteSheet(${i})" aria-label="Edit">✎</button>
+        <button class="icon-btn" onclick="delNote(${i})" aria-label="Delete">🗑</button>
+      </div>`;
+    list.appendChild(div);
+  });
+  populateBackupYearOptions();
+}
+
+/* =========================================================
+   Calendar — aggregates Expense/OT/Task/Note across all data
+========================================================= */
+const CAL_MONTH_NAMES=['January','February','March','April','May','June','July','August','September','October','November','December'];
+let calendarYear=null,calendarMonth=null; // calendarMonth is 1-12
+function initCalendarToToday(){
+  const now=new Date();
+  calendarYear=now.getFullYear();
+  calendarMonth=now.getMonth()+1;
+}
+function calendarStepMonth(delta){
+  calendarMonth+=delta;
+  if(calendarMonth<1){calendarMonth=12;calendarYear--;}
+  if(calendarMonth>12){calendarMonth=1;calendarYear++;}
+  renderCalendar();
+}
+function calendarGoToday(){
+  initCalendarToToday();
+  renderCalendar();
+}
+function collectEventsForCalendarMonth(year,month){
+  const prefix=year+'-'+String(month).padStart(2,'0');
+  const results={};
+  const mark=(dateStr,cat)=>{
+    if(!dateStr||!dateStr.startsWith(prefix))return;
+    if(!results[dateStr])results[dateStr]={};
+    results[dateStr][cat]=true;
+  };
+  Object.values(state.months).forEach(items=>items.forEach(e=>mark(e.date,'expense')));
+  Object.values(state.otMonths).forEach(items=>items.forEach(e=>mark(e.date,'ot')));
+  state.tasks.forEach(t=>mark(t.dueDate,'task'));
+  state.notes.forEach(n=>mark(n.date,'note'));
+  return results;
+}
+function renderCalendar(){
+  if(calendarYear===null)initCalendarToToday();
+  const grid=document.getElementById('calGrid');
+  if(!grid)return;
+  document.getElementById('calMonthLabel').textContent=CAL_MONTH_NAMES[calendarMonth-1]+' '+calendarYear;
+  const events=collectEventsForCalendarMonth(calendarYear,calendarMonth);
+  const firstDay=new Date(calendarYear,calendarMonth-1,1);
+  const startWeekday=firstDay.getDay();
+  const daysInMonth=new Date(calendarYear,calendarMonth,0).getDate();
+  const daysInPrevMonth=new Date(calendarYear,calendarMonth-1,0).getDate();
+  const now=new Date();
+  const todayStr=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  const dotCats=['expense','ot','task','note'];
+  let cells='';
+  for(let i=startWeekday-1;i>=0;i--){
+    const d=daysInPrevMonth-i;
+    cells+=`<div class="cal-cell cal-cell-muted"><span class="cal-daynum">${d}</span></div>`;
+  }
+  for(let d=1;d<=daysInMonth;d++){
+    const dateStr=calendarYear+'-'+String(calendarMonth).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const isToday=dateStr===todayStr;
+    const ev=events[dateStr];
+    const dots=ev?dotCats.filter(c=>ev[c]).map(c=>`<span class="cal-dot cal-dot-${c}"></span>`).join(''):'';
+    cells+=`<div class="cal-cell${isToday?' cal-today':''}${ev?' cal-has-event':''}"${ev?` onclick="openCalendarDay('${dateStr}')"`:''}>
+      <span class="cal-daynum">${d}</span>
+      <div class="cal-dots">${dots}</div>
+    </div>`;
+  }
+  const totalCells=startWeekday+daysInMonth;
+  const trailing=(7-(totalCells%7))%7;
+  for(let d=1;d<=trailing;d++){
+    cells+=`<div class="cal-cell cal-cell-muted"><span class="cal-daynum">${d}</span></div>`;
+  }
+  grid.innerHTML=cells;
+}
+function getEventsListForDate(dateStr){
+  const items=[];
+  Object.values(state.months).forEach(arr=>arr.forEach(e=>{
+    if(e.date===dateStr)items.push({cat:'expense',title:e.desc||'(No description)',sub:(combinedLocation(e)?combinedLocation(e)+' · ':'')+THB(e.amount)+' THB'});
+  }));
+  Object.values(state.otMonths).forEach(arr=>arr.forEach(e=>{
+    if(e.date===dateStr)items.push({cat:'ot',title:`${e.timeIn}–${e.timeOut}`,sub:e.details||(e.location?otLocationDisplay(e.location):'')});
+  }));
+  state.tasks.forEach(t=>{
+    if(t.dueDate===dateStr)items.push({cat:'task',title:t.title,sub:TASK_STATUS_LABELS[t.status]||'Not Started'});
+  });
+  state.notes.forEach(n=>{
+    if(n.date===dateStr)items.push({cat:'note',title:n.title,sub:n.content?(n.content.length>80?n.content.slice(0,80)+'…':n.content):''});
+  });
+  return items;
+}
+function openCalendarDay(dateStr){
+  const items=getEventsListForDate(dateStr);
+  const wrap=document.getElementById('calDayList');
+  wrap.innerHTML=items.length?items.map(it=>`
+    <div class="cal-day-item">
+      <span class="cal-dot cal-dot-${it.cat}"></span>
+      <div>
+        <div class="cal-day-item-title">${esc(it.title)}</div>
+        ${it.sub?`<div class="cal-day-item-sub">${esc(it.sub)}</div>`:''}
+      </div>
+    </div>`).join(''):'<div class="empty">No items on this day.</div>';
+  document.getElementById('calDayTitle').textContent=fmtDateFull(dateStr);
+  document.getElementById('calDayOverlay').classList.add('open');
+}
+function closeCalDay(){document.getElementById('calDayOverlay').classList.remove('open');}
 
 let otEditIndex=null;
 function openOTSheet(i=null){
