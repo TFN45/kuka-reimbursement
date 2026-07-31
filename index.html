@@ -2909,6 +2909,15 @@ function sendApprovalEmail(){
 /* =========================================================
    OT (Overtime) — independent month archive, own PDF/email
 ========================================================= */
+function addOneDay(dateStr){
+  const d=new Date(dateStr+'T00:00:00');
+  d.setDate(d.getDate()+1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function timeToMinutes(t){
+  const[h,m]=t.split(':').map(Number);
+  return h*60+m;
+}
 function getOTStandardHours(){
   const ci=state.emp.otStdCheckIn||'09:00';
   const co=state.emp.otStdCheckOut||'18:00';
@@ -3135,6 +3144,42 @@ function saveOTEntry(){
       return;
     }
   }
+  const crossesMidnight=timeToMinutes(timeOut)<timeToMinutes(timeIn);
+  if(crossesMidnight){
+    const nextDate=addOneDay(date);
+    const proceed=confirm(
+      `Check Out (${timeOut}) is earlier than Check In (${timeIn}) — this session crosses midnight.\n\n`+
+      `Your OT form can't have one entry span two dates, so this will be split into two entries automatically:\n\n`+
+      `• ${fmtDateFull(date)}: ${timeIn}–23:59 (as selected)\n`+
+      `• ${fmtDateFull(nextDate)}: 00:00–${timeOut} (auto 3× — after-midnight policy)\n\n`+
+      `Continue?`
+    );
+    if(!proceed)return;
+    const locObj=otSelectedLocation?{name:otSelectedLocation.name,province:otSelectedLocation.province}:null;
+    const calcA=calcOTHours(timeIn,'23:59',otSelectedDayType);
+    const entryA={
+      id:otEditIndex===null?uid():state.otEntries[otEditIndex].id,
+      date,timeIn,timeOut:'23:59',dayType:otSelectedDayType,
+      location:locObj,details,
+      ot1x:calcA.ot1x,ot15x:calcA.ot15x,ot3x:calcA.ot3x,
+      otCustom:calcA.otCustom,customRate
+    };
+    const calcB=calcOTHours('00:00',timeOut,'public_holiday');
+    const entryB={
+      id:uid(),
+      date:nextDate,timeIn:'00:00',timeOut,dayType:'public_holiday',afterMidnight:true,
+      location:locObj,
+      details:details?details+' (continued past midnight)':'Continued past midnight',
+      ot1x:0,ot15x:0,ot3x:calcB.ot3x,
+      otCustom:0,customRate:null
+    };
+    if(otEditIndex===null)state.otEntries.push(entryA);else state.otEntries[otEditIndex]=entryA;
+    state.otEntries.push(entryB);
+    state.otEntries.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    persist();renderOT();
+    closeOTSheet();
+    return;
+  }
   const calc=calcOTHours(timeIn,timeOut,otSelectedDayType);
   const e={
     id:otEditIndex===null?uid():state.otEntries[otEditIndex].id,
@@ -3203,7 +3248,7 @@ function renderOT(){
       <div class="entry-body">
         <div class="entry-top-row">
           <div class="entry-desc">${esc(e.timeIn)}–${esc(e.timeOut)}</div>
-          <span class="status-badge status-draft">${dayTypeLabel[e.dayType]||'Normal'}</span>
+          <span class="status-badge status-${e.afterMidnight?'paid':'draft'}">${e.afterMidnight?'After Midnight (3×)':(dayTypeLabel[e.dayType]||'Normal')}</span>
         </div>
         ${e.location?`<div class="entry-purpose">📍 ${esc(otLocationDisplay(e.location))}</div>`:''}
         ${e.details?`<div class="entry-purpose">${esc(e.details)}</div>`:''}
