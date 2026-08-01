@@ -693,6 +693,7 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
 /* ===== Print: formal English corporate layout ===== */
 .printpage{display:none}
 .ot-printpage{display:none}
+@page{size:A4 portrait;margin:15mm}
 @media print{
   body{background:#fff;padding:0}
   header,main,.totalbar,.ot-totalbar,.overlay,.viewer{display:none !important}
@@ -1516,6 +1517,36 @@ async function updateStorageUsage(){
 
 /* ---------- signature pad (draw + save, like Adobe Acrobat's saved signature) ---------- */
 let sigCtx=null,sigDrawing=false,sigHasStrokes=false,sigLastPt=null,sigListenersBound=false;
+let sigResizeTimer=null;
+window.addEventListener('resize',()=>{
+  clearTimeout(sigResizeTimer);
+  sigResizeTimer=setTimeout(resizeSignatureCanvas,200);
+});
+function resizeSignatureCanvas(){
+  const canvas=document.getElementById('sigCanvas');
+  if(!canvas||!sigCtx)return;
+  const rect=canvas.getBoundingClientRect();
+  const newW=rect.width||canvas.parentElement.clientWidth||300;
+  const dpr=window.devicePixelRatio||1;
+  const newPxW=Math.round(newW*dpr);
+  if(Math.abs(newPxW-canvas.width)<2)return; // no meaningful size change
+  // Preserve whatever is already drawn, then rescale it into the resized canvas.
+  const snapshot=sigHasStrokes?canvas.toDataURL('image/png'):null;
+  const cssH=160;
+  canvas.width=newPxW;
+  canvas.height=Math.round(cssH*dpr);
+  sigCtx=canvas.getContext('2d');
+  sigCtx.scale(dpr,dpr);
+  sigCtx.lineWidth=2.4;
+  sigCtx.lineCap='round';
+  sigCtx.lineJoin='round';
+  sigCtx.strokeStyle='#16181B';
+  if(snapshot){
+    const img=new Image();
+    img.onload=()=>sigCtx.drawImage(img,0,0,newW,cssH);
+    img.src=snapshot;
+  }
+}
 function initSignaturePad(){
   const canvas=document.getElementById('sigCanvas');
   if(!canvas)return;
@@ -2026,16 +2057,24 @@ document.getElementById('fReceipt').addEventListener('change',async ev=>{
 function compressImage(file,MAX,CAP){
   return new Promise((resolve,reject)=>{
     const img=new Image();
+    img.style.imageOrientation='from-image';
     const url=URL.createObjectURL(file);
     img.onload=()=>{
       URL.revokeObjectURL(url);
       let w=img.width,h=img.height;
       if(Math.max(w,h)>MAX){const s=MAX/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s);}
-      const cv=document.createElement('canvas');
-      cv.width=w;cv.height=h;
-      cv.getContext('2d').drawImage(img,0,0,w,h);
-      let q=0.75,out=cv.toDataURL('image/jpeg',q);
-      while(out.length>CAP&&q>0.25){q-=0.1;out=cv.toDataURL('image/jpeg',q);}
+      let out,guard=0;
+      while(guard<8){
+        const cv=document.createElement('canvas');
+        cv.width=w;cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        out=cv.toDataURL('image/jpeg',0.75);
+        if(out.length<=CAP||Math.max(w,h)<=400)break;
+        // Still over the cap: shrinking dimensions cuts file size much faster
+        // than stepping down quality, and each further pass is cheaper too.
+        w=Math.round(w*0.8);h=Math.round(h*0.8);
+        guard++;
+      }
       resolve(out);
     };
     img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('decode'));};
