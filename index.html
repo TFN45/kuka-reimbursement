@@ -601,6 +601,27 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   margin-top:8px;font-size:.75rem;font-weight:600;color:var(--kuka-dark);
   background:var(--kuka-soft);border-radius:8px;padding:6px 10px;text-align:center;
 }
+.ocr-suggest{
+  margin-top:10px;padding:11px 12px;border-radius:var(--r-sm);
+  background:var(--kuka-soft);border:1px solid var(--kuka-border);
+  display:flex;align-items:center;gap:10px;font-size:.85rem;
+}
+.ocr-suggest.scanning{color:var(--ink-2);background:var(--surface-2);border-color:var(--line)}
+.ocr-spinner{
+  width:15px;height:15px;border-radius:50%;flex-shrink:0;
+  border:2px solid var(--kuka-border);border-top-color:var(--kuka);
+  animation:ocrSpin .7s linear infinite;
+}
+@keyframes ocrSpin{to{transform:rotate(360deg)}}
+.ocr-suggest-text{flex:1;color:var(--kuka-dark);font-weight:600}
+.ocr-suggest-use{
+  flex-shrink:0;background:var(--kuka);color:#fff;border:none;border-radius:7px;
+  padding:7px 12px;font-family:inherit;font-size:.78rem;font-weight:700;cursor:pointer;
+}
+.ocr-suggest-dismiss{
+  flex-shrink:0;background:none;border:none;color:var(--ink-2);font-size:1rem;
+  cursor:pointer;padding:2px 4px;line-height:1;
+}
 .rp-row{
   display:flex;gap:12px;align-items:center;padding:10px;border:1px solid var(--line);
   border-radius:10px;margin-bottom:8px;cursor:pointer;
@@ -1040,6 +1061,19 @@ try{
       </div>
     </div>
 
+    <div class="section-label">Receipt Scanning</div>
+    <div class="card">
+      <div class="switch-row">
+        <div>
+          <div class="switch-label">Suggest Amount from Receipt</div>
+          <div class="switch-sub">Scans an attached photo and suggests the total — never fills it in without your confirmation. Needs an internet connection the first time it's used.</div>
+        </div>
+        <button type="button" class="switch" id="ocrSwitch" onclick="toggleOCR()" aria-label="Toggle receipt amount suggestion">
+          <span class="switch-knob"></span>
+        </button>
+      </div>
+    </div>
+
     <div class="section-label">Storage Usage</div>
     <div class="card">
       <div class="storage-usage-text" id="storageUsageText">Checking…</div>
@@ -1134,6 +1168,7 @@ try{
         <div class="attach-link-badge" id="attachLinkBadge" style="display:none">🔗 Linked — shared with another entry</div>
       </div>
       <div class="attach-status" id="attachStatus"></div>
+      <div class="ocr-suggest" id="ocrSuggest" style="display:none"></div>
     </div>
 
     <div class="field">
@@ -1762,6 +1797,15 @@ document.addEventListener('keydown',ev=>{
 
 /* ---------- init / load ---------- */
 let currentView='home';
+function applyOCRSwitchUI(){
+  const sw=document.getElementById('ocrSwitch');
+  if(sw)sw.classList.toggle('on',!!state.emp.ocrEnabled);
+}
+function toggleOCR(){
+  state.emp.ocrEnabled=!state.emp.ocrEnabled;
+  persist();persistProfile();
+  applyOCRSwitchUI();
+}
 function applyThemeSwitchUI(){
   const isDark=document.documentElement.getAttribute('data-theme')==='dark';
   const sw=document.getElementById('darkModeSwitch');
@@ -1878,6 +1922,7 @@ async function init(){
   initSignaturePad();
   renderSavedSignature();
   await initThemeFromStorage();
+  applyOCRSwitchUI();
   handleShortcutAction();
   const minDisplay=1500;
   const elapsed=Date.now()-splashStart;
@@ -1922,7 +1967,7 @@ async function load(){
   try{
     const pv=await kv.get(PKEY);
     if(pv){const p=JSON.parse(pv);
-      ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes','otBaseSalary','otMidnightWeekday','otMidnightHoliday','workDays'].forEach(k=>{if(!state.emp[k]&&p[k])state.emp[k]=p[k];});
+      ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes','otBaseSalary','otMidnightWeekday','otMidnightHoliday','workDays','ocrEnabled'].forEach(k=>{if(!state.emp[k]&&p[k])state.emp[k]=p[k];});
       if(!state.emp.descPresets&&Array.isArray(p.descPresets))state.emp.descPresets=p.descPresets;
       if(!state.emp.locPresets&&Array.isArray(p.locPresets))state.emp.locPresets=p.locPresets;
     }
@@ -1992,7 +2037,7 @@ let profTimer=null;
 function persistProfile(){
   clearTimeout(profTimer);
   profTimer=setTimeout(()=>{
-    kv.set(PKEY,JSON.stringify({name:state.emp.name,id:state.emp.id,position:state.emp.position,workLocation:state.emp.workLocation,mgrName:state.emp.mgrName,mgrPosition:state.emp.mgrPosition,mgrEmail:state.emp.mgrEmail,descPresets:state.emp.descPresets,locPresets:state.emp.locPresets,signature:state.emp.signature,mileageRate:state.emp.mileageRate,otStdCheckIn:state.emp.otStdCheckIn,otStdCheckOut:state.emp.otStdCheckOut,otBreakMinutes:state.emp.otBreakMinutes,otBaseSalary:state.emp.otBaseSalary,otMidnightWeekday:state.emp.otMidnightWeekday,otMidnightHoliday:state.emp.otMidnightHoliday,workDays:state.emp.workDays})).catch(()=>{});
+    kv.set(PKEY,JSON.stringify({name:state.emp.name,id:state.emp.id,position:state.emp.position,workLocation:state.emp.workLocation,mgrName:state.emp.mgrName,mgrPosition:state.emp.mgrPosition,mgrEmail:state.emp.mgrEmail,descPresets:state.emp.descPresets,locPresets:state.emp.locPresets,signature:state.emp.signature,mileageRate:state.emp.mileageRate,otStdCheckIn:state.emp.otStdCheckIn,otStdCheckOut:state.emp.otStdCheckOut,otBreakMinutes:state.emp.otBreakMinutes,otBaseSalary:state.emp.otBaseSalary,otMidnightWeekday:state.emp.otMidnightWeekday,otMidnightHoliday:state.emp.otMidnightHoliday,workDays:state.emp.workDays,ocrEnabled:state.emp.ocrEnabled})).catch(()=>{});
   },600);
 }
 ['empName','empId','empPosition','workLocation','mgrName','mgrPosition','mgrEmail'].forEach(id=>{
@@ -2051,6 +2096,7 @@ document.getElementById('fReceipt').addEventListener('change',async ev=>{
     pendingRemoved=false;
     pendingReceiptRef=null;
     showAttachPreview(pendingReceipt.url,false);
+    if(state.emp.ocrEnabled)scanReceiptForAmount(file);
   }catch(e){status.textContent='Could not read image — please try again.';}
   ev.target.value='';
 });
@@ -2081,6 +2127,97 @@ function compressImage(file,MAX,CAP){
     img.src=url;
   });
 }
+/* =========================================================
+   Receipt OCR — optional, suggests an amount, never auto-fills
+========================================================= */
+let tesseractLoadPromise=null;
+function loadTesseract(){
+  if(window.Tesseract)return Promise.resolve();
+  if(tesseractLoadPromise)return tesseractLoadPromise;
+  tesseractLoadPromise=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    s.onload=()=>resolve();
+    s.onerror=()=>{tesseractLoadPromise=null;reject(new Error('load-failed'));};
+    document.head.appendChild(s);
+  });
+  return tesseractLoadPromise;
+}
+function withTimeout(promise,ms){
+  return Promise.race([
+    promise,
+    new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))
+  ]);
+}
+function parseAmountFromText(text){
+  if(!text)return null;
+  const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
+  const numRe=/\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?/g;
+  const plausible=v=>v>0&&v<10000000;
+  const lastNumberOnLine=line=>{
+    const nums=line.match(numRe);
+    if(!nums||!nums.length)return null;
+    const val=parseFloat(nums[nums.length-1].replace(/,/g,''));
+    return plausible(val)?val:null;
+  };
+  const isSubtotal=line=>/sub\s*-?\s*total/i.test(line);
+  const isNonCurrencyLine=line=>/\b(ref|reference|order\s*no|invoice\s*no|receipt\s*no|tel|phone|tax\s*id)\b|เลขที่|เบอร์โทร|โทร[.:]/i.test(line);
+  const tier1=/grand\s*total|amount\s*due|net\s*amount|ยอดสุทธิ|ยอดรวมสุทธิ|รวมทั้งสิ้น/i;
+  const tier2=/total|รวมเงิน|จำนวนเงิน|ยอดรวม|รวม/i;
+  let best1=null,best2=null;
+  for(const line of lines){
+    if(isSubtotal(line))continue;
+    if(tier1.test(line)){const v=lastNumberOnLine(line);if(v!==null)best1=v;}
+    else if(tier2.test(line)){const v=lastNumberOnLine(line);if(v!==null)best2=v;}
+  }
+  if(best1!==null)return best1;
+  if(best2!==null)return best2;
+  // No total-like keyword found — fall back to the largest plausible number,
+  // ignoring lines that look like reference/order/phone numbers rather than
+  // a currency amount.
+  const candidates=[];
+  for(const line of lines){
+    if(isNonCurrencyLine(line))continue;
+    const nums=line.match(numRe);
+    if(nums)nums.forEach(n=>{
+      const v=parseFloat(n.replace(/,/g,''));
+      if(plausible(v))candidates.push(v);
+    });
+  }
+  return candidates.length?Math.max(...candidates):null;
+}
+async function scanReceiptForAmount(file){
+  const banner=document.getElementById('ocrSuggest');
+  if(!banner)return;
+  banner.className='ocr-suggest scanning';
+  banner.style.display='flex';
+  banner.innerHTML='<div class="ocr-spinner"></div><div class="ocr-suggest-text">Scanning receipt for amount…</div>';
+  try{
+    await withTimeout(loadTesseract(),20000);
+    const result=await withTimeout(Tesseract.recognize(file,'eng+tha'),45000);
+    const amount=parseAmountFromText(result.data.text);
+    if(amount){
+      banner.className='ocr-suggest';
+      banner.innerHTML=`<div class="ocr-suggest-text">Found: ${THB(amount)} THB — use this?</div>`+
+        `<button type="button" class="ocr-suggest-use" onclick="useOCRSuggestion(${amount})">Use</button>`+
+        `<button type="button" class="ocr-suggest-dismiss" onclick="dismissOCRSuggestion()" aria-label="Dismiss">✕</button>`;
+    }else{
+      banner.style.display='none';
+    }
+  }catch(e){
+    banner.style.display='none';
+  }
+}
+function useOCRSuggestion(amount){
+  const el=document.getElementById('fAmount');
+  if(el)el.value=Number(amount).toFixed(2);
+  dismissOCRSuggestion();
+}
+function dismissOCRSuggestion(){
+  const banner=document.getElementById('ocrSuggest');
+  if(banner){banner.style.display='none';banner.innerHTML='';}
+}
+
 function showAttachPreview(url,isLinked){
   document.getElementById('attachImg').src=url;
   document.getElementById('attachPreview').style.display='block';
@@ -2313,6 +2450,7 @@ async function openSheet(i=null){
   document.getElementById('mileageCalc').style.display='none';
   document.getElementById('mileageToggle').textContent='🚗 Calculate from distance instead';
   document.getElementById('mileDistance').value='';
+  dismissOCRSuggestion();
   document.getElementById('overlay').classList.add('open');
 }
 function closeSheet(){document.getElementById('overlay').classList.remove('open');}
@@ -2364,6 +2502,7 @@ function duplicateEntry(i){
   document.getElementById('mileageCalc').style.display='none';
   document.getElementById('mileageToggle').textContent='🚗 Calculate from distance instead';
   document.getElementById('mileDistance').value='';
+  dismissOCRSuggestion();
   document.getElementById('overlay').classList.add('open');
 }
 
@@ -2897,7 +3036,7 @@ document.getElementById('importFile').addEventListener('change',ev=>{
       msg+='\nContinue?';
       if(!confirm(msg))return;
       if(p.state&&p.state.emp){
-        ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes','otBaseSalary','otMidnightWeekday','otMidnightHoliday','workDays'].forEach(k=>{
+        ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes','otBaseSalary','otMidnightWeekday','otMidnightHoliday','workDays','ocrEnabled'].forEach(k=>{
           if(!state.emp[k]&&p.state.emp[k])state.emp[k]=p.state.emp[k];
         });
         if(Array.isArray(p.state.emp.descPresets)){
@@ -3012,6 +3151,7 @@ document.getElementById('importFile').addEventListener('change',ev=>{
       renderHolidays();
       renderWorkDayRow();
       renderSavedSignature();
+      applyOCRSwitchUI();
       updateStorageUsage();
       noteMsg((missingImages?'✓ Restored (some images skipped — storage full) — ':'✓ ')+`Added ${newKeys.length} expense + ${newOTKeys.length} OT month(s), ${newTasks.length} task(s), ${newNotes.length} note(s)`);
     }catch(e){alert('Invalid file — please select a .json file exported from this app.');}
