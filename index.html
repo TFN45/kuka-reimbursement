@@ -937,6 +937,15 @@ try{
       <div class="field-note" style="margin-bottom:0">Used to auto-calculate OT hours, and to estimate OT pay (based on a 30-day month). Verify results match your company's OT policy before submitting.</div>
     </div>
 
+    <div class="section-label">After-Midnight Rates</div>
+    <div class="card">
+      <div class="row2">
+        <div class="field"><label>Weekday (×)</label><input id="otMidnightWeekday" type="number" inputmode="decimal" step="0.5" min="0" placeholder="3"></div>
+        <div class="field"><label>Holiday (×)</label><input id="otMidnightHoliday" type="number" inputmode="decimal" step="0.5" min="0" placeholder="3"></div>
+      </div>
+      <div class="field-note" style="margin-bottom:0">Applied automatically to hours worked past midnight when an OT entry is split across two dates. "Holiday" is used when the original entry is a Weekly or Public Holiday; otherwise the Weekday rate applies.</div>
+    </div>
+
     <div class="section-label">My Signature</div>
     <div class="card">
       <div id="savedSigPreviewWrap" style="display:none">
@@ -1822,7 +1831,7 @@ async function load(){
   try{
     const pv=await kv.get(PKEY);
     if(pv){const p=JSON.parse(pv);
-      ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes','otBaseSalary'].forEach(k=>{if(!state.emp[k]&&p[k])state.emp[k]=p[k];});
+      ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes','otBaseSalary','otMidnightWeekday','otMidnightHoliday'].forEach(k=>{if(!state.emp[k]&&p[k])state.emp[k]=p[k];});
       if(!state.emp.descPresets&&Array.isArray(p.descPresets))state.emp.descPresets=p.descPresets;
       if(!state.emp.locPresets&&Array.isArray(p.locPresets))state.emp.locPresets=p.locPresets;
     }
@@ -1854,6 +1863,8 @@ async function load(){
   document.getElementById('otStdCheckOut').value=state.emp.otStdCheckOut||'18:00';
   document.getElementById('otBreakMinutes').value=state.emp.otBreakMinutes!==undefined?state.emp.otBreakMinutes:60;
   document.getElementById('otBaseSalary').value=state.emp.otBaseSalary||'';
+  document.getElementById('otMidnightWeekday').value=state.emp.otMidnightWeekday!==undefined?state.emp.otMidnightWeekday:3;
+  document.getElementById('otMidnightHoliday').value=state.emp.otMidnightHoliday!==undefined?state.emp.otMidnightHoliday:3;
   document.getElementById('mgrName').value=state.emp.mgrName||'';
   document.getElementById('mgrPosition').value=state.emp.mgrPosition||'';
   document.getElementById('mgrEmail').value=state.emp.mgrEmail||'';
@@ -1887,7 +1898,7 @@ let profTimer=null;
 function persistProfile(){
   clearTimeout(profTimer);
   profTimer=setTimeout(()=>{
-    kv.set(PKEY,JSON.stringify({name:state.emp.name,id:state.emp.id,position:state.emp.position,workLocation:state.emp.workLocation,mgrName:state.emp.mgrName,mgrPosition:state.emp.mgrPosition,mgrEmail:state.emp.mgrEmail,descPresets:state.emp.descPresets,locPresets:state.emp.locPresets,signature:state.emp.signature,mileageRate:state.emp.mileageRate,otStdCheckIn:state.emp.otStdCheckIn,otStdCheckOut:state.emp.otStdCheckOut,otBreakMinutes:state.emp.otBreakMinutes,otBaseSalary:state.emp.otBaseSalary})).catch(()=>{});
+    kv.set(PKEY,JSON.stringify({name:state.emp.name,id:state.emp.id,position:state.emp.position,workLocation:state.emp.workLocation,mgrName:state.emp.mgrName,mgrPosition:state.emp.mgrPosition,mgrEmail:state.emp.mgrEmail,descPresets:state.emp.descPresets,locPresets:state.emp.locPresets,signature:state.emp.signature,mileageRate:state.emp.mileageRate,otStdCheckIn:state.emp.otStdCheckIn,otStdCheckOut:state.emp.otStdCheckOut,otBreakMinutes:state.emp.otBreakMinutes,otBaseSalary:state.emp.otBaseSalary,otMidnightWeekday:state.emp.otMidnightWeekday,otMidnightHoliday:state.emp.otMidnightHoliday})).catch(()=>{});
   },600);
 }
 ['empName','empId','empPosition','workLocation','mgrName','mgrPosition','mgrEmail'].forEach(id=>{
@@ -1906,6 +1917,11 @@ document.getElementById('otBreakMinutes').addEventListener('input',e=>{
 });
 document.getElementById('otBaseSalary').addEventListener('input',e=>{
   state.emp.otBaseSalary=parseFloat(e.target.value)||0;persist();persistProfile();
+});
+['otMidnightWeekday','otMidnightHoliday'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',e=>{
+    state.emp[id]=parseFloat(e.target.value)||0;persist();persistProfile();
+  });
 });
 document.getElementById('otMonthInput').addEventListener('input',e=>{
   const newRaw=e.target.value;
@@ -2775,7 +2791,7 @@ document.getElementById('importFile').addEventListener('change',ev=>{
       msg+='\nContinue?';
       if(!confirm(msg))return;
       if(p.state&&p.state.emp){
-        ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes','otBaseSalary'].forEach(k=>{
+        ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes','otBaseSalary','otMidnightWeekday','otMidnightHoliday'].forEach(k=>{
           if(!state.emp[k]&&p.state.emp[k])state.emp[k]=p.state.emp[k];
         });
         if(Array.isArray(p.state.emp.descPresets)){
@@ -2872,6 +2888,8 @@ document.getElementById('importFile').addEventListener('change',ev=>{
   document.getElementById('otStdCheckOut').value=state.emp.otStdCheckOut||'18:00';
       document.getElementById('otBreakMinutes').value=state.emp.otBreakMinutes!==undefined?state.emp.otBreakMinutes:60;
   document.getElementById('otBaseSalary').value=state.emp.otBaseSalary||'';
+  document.getElementById('otMidnightWeekday').value=state.emp.otMidnightWeekday!==undefined?state.emp.otMidnightWeekday:3;
+  document.getElementById('otMidnightHoliday').value=state.emp.otMidnightHoliday!==undefined?state.emp.otMidnightHoliday:3;
       document.getElementById('mgrName').value=state.emp.mgrName||'';
       document.getElementById('mgrPosition').value=state.emp.mgrPosition||'';
       document.getElementById('mgrEmail').value=state.emp.mgrEmail||'';
@@ -3305,7 +3323,11 @@ function calcOTHours(timeIn,timeOut,dayType,customRate){
   if(!timeIn||!timeOut)return{ot1x:0,ot15x:0,ot3x:0,otCustom:0,totalHours:0};
   const[inH,inM]=timeIn.split(':').map(Number);
   const[outH,outM]=timeOut.split(':').map(Number);
-  let totalMinutes=(outH*60+outM)-(inH*60+inM);
+  // 23:59 is the latest value a time input allows, so it is what the app stores
+  // for a shift that runs to end of day (e.g. the pre-midnight half of a split
+  // entry). Treat it as midnight so that final minute isn't silently dropped.
+  const outMinutes=(outH===23&&outM===59)?24*60:(outH*60+outM);
+  let totalMinutes=outMinutes-(inH*60+inM);
   if(totalMinutes<0)totalMinutes+=24*60;
   const stdHours=getOTStandardHours();
   const breakMin=Number(state.emp.otBreakMinutes)||0;
@@ -3976,6 +3998,11 @@ function saveOTEntry(){
     // Hours past midnight are paid at 3x, capped by the OT actually earned.
     const nightOT=Math.min(afterMidnightHours,totalOT);
     const remaining=Math.round((totalOT-nightOT)*100)/100;
+    // After-midnight multiplier is configurable, split by weekday vs holiday.
+    const isHolidayEntry=otSelectedDayType==='weekly_holiday'||otSelectedDayType==='public_holiday';
+    const midnightRate=isHolidayEntry
+      ?(state.emp.otMidnightHoliday!==undefined?Number(state.emp.otMidnightHoliday):3)
+      :(state.emp.otMidnightWeekday!==undefined?Number(state.emp.otMidnightWeekday):3);
     // Allocate the pre-midnight remainder back to its original rate buckets,
     // draining the highest-rate buckets last so nothing is over-credited.
     let left=remaining;
@@ -3988,7 +4015,7 @@ function saveOTEntry(){
       `Check Out (${timeOut}) is earlier than Check In (${timeIn}) — this session crosses midnight.\n\n`+
       `Your OT form can't have one entry span two dates, so this will be split into two entries automatically:\n\n`+
       `• ${fmtDateFull(date)}: ${timeIn}–23:59 — ${remaining.toFixed(2)} OT hrs\n`+
-      `• ${fmtDateFull(nextDate)}: 00:00–${timeOut} — ${nightOT.toFixed(2)} hrs @ 3× (after-midnight policy)\n\n`+
+      `• ${fmtDateFull(nextDate)}: 00:00–${timeOut} — ${nightOT.toFixed(2)} hrs @ ${midnightRate}× (${isHolidayEntry?'holiday':'weekday'} after-midnight rate)\n\n`+
       `Continue?`
     );
     if(!proceed)return;
@@ -4000,13 +4027,21 @@ function saveOTEntry(){
       ot1x:a1x,ot15x:a15x,ot3x:a3x,
       otCustom:aCustom,customRate
     };
+    // The standard form has fixed 1x/1.5x/3x columns, so an exact 3x goes in the
+    // 3x column; any other configured rate is carried in the custom bucket and
+    // printed in the Details column instead.
+    const useStd3x=midnightRate===3;
     const entryB={
       id:uid(),
-      date:nextDate,timeIn:'00:00',timeOut,dayType:'public_holiday',afterMidnight:true,
+      date:nextDate,timeIn:'00:00',timeOut,
+      dayType:useStd3x?'public_holiday':'custom',
+      afterMidnight:true,midnightRate,
       location:locObj,
       details:details?details+' (continued past midnight)':'Continued past midnight',
-      ot1x:0,ot15x:0,ot3x:nightOT,
-      otCustom:0,customRate:null
+      ot1x:0,ot15x:0,
+      ot3x:useStd3x?nightOT:0,
+      otCustom:useStd3x?0:nightOT,
+      customRate:useStd3x?null:midnightRate
     };
     if(otEditIndex===null)state.otEntries.push(entryA);else state.otEntries[otEditIndex]=entryA;
     state.otEntries.push(entryB);
@@ -4083,7 +4118,7 @@ function renderOT(){
       <div class="entry-body">
         <div class="entry-top-row">
           <div class="entry-desc">${esc(e.timeIn)}–${esc(e.timeOut)}</div>
-          <span class="status-badge status-${e.afterMidnight?'paid':'draft'}">${e.afterMidnight?'After Midnight (3×)':(dayTypeLabel[e.dayType]||'Normal')}</span>
+          <span class="status-badge status-${e.afterMidnight?'paid':'draft'}">${e.afterMidnight?`After Midnight (${e.midnightRate!==undefined?e.midnightRate:3}×)`:(dayTypeLabel[e.dayType]||'Normal')}</span>
         </div>
         ${e.location?`<div class="entry-purpose">📍 ${esc(otLocationDisplay(e.location))}</div>`:''}
         ${e.details?`<div class="entry-purpose">${esc(e.details)}</div>`:''}
