@@ -175,20 +175,30 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   color:var(--ink-2);cursor:pointer;
 }
 .cal-mode-btn.active{background:var(--card);color:var(--ink);box-shadow:var(--shadow-sm)}
-.cal-week-day-label{
-  font-size:.72rem;font-weight:700;color:var(--ink-3);letter-spacing:.04em;
-  margin:16px 0 4px;text-transform:uppercase;
+.cal-agenda-scroll{display:flex;flex-direction:column}
+.cal-agenda-day{margin-bottom:18px}
+.cal-agenda-day-label{
+  font-size:.8rem;font-weight:700;color:var(--ink-2);
+  padding-bottom:6px;border-bottom:1px solid var(--line);margin-bottom:9px;
 }
-.cal-week-day-label:first-child{margin-top:4px}
-.cal-week-item{
-  display:flex;gap:10px;align-items:flex-start;padding:10px 12px;
-  background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);
-  margin-bottom:6px;cursor:pointer;
+.cal-agenda-day-label .day-num{color:var(--ink);font-weight:700}
+.cal-agenda-day-label.is-today{color:var(--kuka)}
+.cal-agenda-day-label.is-today .day-num{color:var(--kuka)}
+.cal-agenda-overdue .cal-agenda-day-label{color:var(--danger)}
+.cal-agenda-item{
+  display:flex;background:var(--card);border:1px solid var(--line);
+  border-radius:var(--r-sm);margin-bottom:8px;overflow:hidden;cursor:pointer;
 }
-.cal-week-item:active{background:var(--kuka-soft)}
-.cal-week-item .cal-dot{width:9px;height:9px;margin-top:5px;flex-shrink:0}
-.cal-week-item-title{font-weight:600;font-size:.87rem;color:var(--ink)}
-.cal-week-item-sub{font-size:.76rem;color:var(--ink-2);margin-top:2px}
+.cal-agenda-item:active{background:var(--kuka-soft)}
+.cal-agenda-item-bar{width:4px;flex-shrink:0}
+.cal-agenda-item-bar.cat-task{background:#0E8A4D}
+.cal-agenda-item-bar.cat-note{background:#7A3FB0}
+.cal-agenda-item-body{padding:11px 13px;flex:1;min-width:0}
+.cal-agenda-item-title{font-weight:600;font-size:.9rem;color:var(--ink)}
+.cal-agenda-item-sub{font-size:.78rem;color:var(--ink-2);margin-top:2px}
+.cal-agenda-empty{
+  text-align:center;color:var(--ink-3);font-size:.85rem;padding:24px 0;
+}
 .cal-day-item{
   display:flex;gap:10px;align-items:flex-start;padding:11px 0;
   border-bottom:1px solid var(--line);
@@ -992,17 +1002,9 @@ try{
       <div class="cal-grid" id="calGrid"></div>
     </div>
 
-    <div class="card" id="calWeekPane" style="display:none">
-      <div class="cal-header">
-        <button class="cal-nav-btn" onclick="calendarStepWeek(-1)" aria-label="Previous week">‹</button>
-        <span class="cal-month-label" id="calWeekLabel"></span>
-        <button class="cal-nav-btn" onclick="calendarStepWeek(1)" aria-label="Next week">›</button>
-      </div>
-      <div class="cal-weekdays"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
-      <div class="cal-grid" id="calWeekStrip"></div>
+    <div id="calWeekPane" style="display:none">
+      <div class="cal-agenda-scroll" id="calAgenda"></div>
     </div>
-
-    <div id="calWeekDetails" style="display:none"></div>
 
     <div class="cal-legend">
       <span><i class="cal-dot cal-dot-expense"></i>Expense</span>
@@ -4147,18 +4149,10 @@ function renderNotes(){
 const CAL_MONTH_NAMES=['January','February','March','April','May','June','July','August','September','October','November','December'];
 let calendarYear=null,calendarMonth=null; // calendarMonth is 1-12
 let calendarMode='month'; // 'month' | 'week' — plain in-memory variable, never persisted, so every fresh app launch starts on Month as intended
-let calendarWeekAnchor=null; // Date for the Sunday that starts the currently viewed week
 function initCalendarToToday(){
   const now=new Date();
   calendarYear=now.getFullYear();
   calendarMonth=now.getMonth()+1;
-}
-function initCalendarWeekToToday(){
-  const now=new Date();
-  const sunday=new Date(now);
-  sunday.setDate(now.getDate()-now.getDay());
-  sunday.setHours(0,0,0,0);
-  calendarWeekAnchor=sunday;
 }
 function renderCalendarActive(){
   if(calendarMode==='week')renderCalendarWeek();
@@ -4169,7 +4163,6 @@ function setCalendarMode(mode){
   document.querySelectorAll('.cal-mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
   document.getElementById('calMonthPane').style.display=mode==='month'?'block':'none';
   document.getElementById('calWeekPane').style.display=mode==='week'?'block':'none';
-  document.getElementById('calWeekDetails').style.display=mode==='week'?'block':'none';
   renderCalendarActive();
 }
 function calendarStepMonth(delta){
@@ -4178,15 +4171,10 @@ function calendarStepMonth(delta){
   if(calendarMonth>12){calendarMonth=1;calendarYear++;}
   renderCalendar();
 }
-function calendarStepWeek(delta){
-  if(!calendarWeekAnchor)initCalendarWeekToToday();
-  calendarWeekAnchor.setDate(calendarWeekAnchor.getDate()+delta*7);
-  renderCalendarWeek();
-}
 function calendarGoToday(){
   initCalendarToToday();
-  initCalendarWeekToToday();
   renderCalendarActive();
+  if(calendarMode==='week')window.scrollTo({top:0,behavior:'smooth'});
 }
 function collectEventsForCalendarMonth(year,month){
   const prefix=year+'-'+String(month).padStart(2,'0');
@@ -4253,75 +4241,66 @@ function renderCalendar(){
   const wdSpans=document.querySelectorAll('#calMonthPane .cal-weekdays span');
   wdSpans.forEach((sp,i)=>sp.classList.toggle('wd-nonwork',!isWorkDay(i)));
 }
+function agendaItemHTML(cat,title,sub,onclick){
+  return `<div class="cal-agenda-item" onclick="${onclick}">
+    <div class="cal-agenda-item-bar cat-${cat}"></div>
+    <div class="cal-agenda-item-body">
+      <div class="cal-agenda-item-title">${title}</div>
+      ${sub?`<div class="cal-agenda-item-sub">${sub}</div>`:''}
+    </div>
+  </div>`;
+}
 function renderCalendarWeek(){
-  if(!calendarWeekAnchor)initCalendarWeekToToday();
-  const strip=document.getElementById('calWeekStrip');
-  if(!strip)return;
-  const dates=[];
-  for(let i=0;i<7;i++){
-    const d=new Date(calendarWeekAnchor);
-    d.setDate(calendarWeekAnchor.getDate()+i);
-    dates.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
-  }
-  const startD=new Date(dates[0]+'T00:00:00'),endD=new Date(dates[6]+'T00:00:00');
-  const short=d=>CAL_MONTH_NAMES[d.getMonth()].slice(0,3)+' '+d.getDate();
-  document.getElementById('calWeekLabel').textContent=startD.getMonth()===endD.getMonth()
-    ?`${short(startD)}–${endD.getDate()}, ${endD.getFullYear()}`
-    :`${short(startD)} – ${short(endD)}, ${endD.getFullYear()}`;
-
-  // A week can span two (or, at year end, even two different) months —
-  // gather events from every month touched by this week's 7 dates.
-  const events={};
-  new Set(dates.map(d=>d.slice(0,7))).forEach(mk=>{
-    const[y,m]=mk.split('-').map(Number);
-    Object.assign(events,collectEventsForCalendarMonth(y,m));
-  });
+  const wrap=document.getElementById('calAgenda');
+  if(!wrap)return;
   const now=new Date();
+  now.setHours(0,0,0,0);
   const todayStr=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-  const dotCats=['expense','ot','task','note'];
-  let cells='';
-  dates.forEach((dateStr,weekday)=>{
-    const isToday=dateStr===todayStr;
-    const ev=events[dateStr];
-    const hol=holidayFor(dateStr);
-    const dots=ev?dotCats.filter(c=>ev[c]).map(c=>`<span class="cal-dot cal-dot-${c}"></span>`).join(''):'';
-    const tappable=ev||hol;
-    const d=Number(dateStr.slice(8,10));
-    cells+=`<div class="cal-cell${isToday?' cal-today':''}${(!isWorkDay(weekday)||hol)?' cal-nonwork':''}${tappable?' cal-has-event':''}"${tappable?` onclick="openCalendarDay('${dateStr}')"`:''}${hol?` title="${escAttr(hol.name)}"`:''}>
-      <span class="cal-daynum">${d}</span>
-      <div class="cal-dots">${dots}</div>
-    </div>`;
-  });
-  strip.innerHTML=cells;
-  const wdSpans=document.querySelectorAll('#calWeekPane .cal-weekdays span');
-  wdSpans.forEach((sp,i)=>sp.classList.toggle('wd-nonwork',!isWorkDay(i)));
-
-  // Detailed Task/Note list for the week, grouped by day.
+  const short=d=>CAL_MONTH_NAMES[d.getMonth()].slice(0,3)+' '+d.getDate();
   const WD_FULL=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  let detailHTML='';
-  dates.forEach(dateStr=>{
+
+  let html='';
+  // Overdue tasks surface at the top regardless of date, so nothing slips through.
+  const overdue=state.tasks.filter(t=>t.dueDate&&t.dueDate<todayStr&&t.status!=='done')
+    .sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
+  if(overdue.length){
+    html+='<div class="cal-agenda-day cal-agenda-overdue"><div class="cal-agenda-day-label">⚠ Overdue</div>';
+    overdue.forEach(t=>{
+      const idx=state.tasks.indexOf(t);
+      html+=agendaItemHTML('task',esc(t.title),`${fmtDateShort(t.dueDate)} · ${esc(TASK_STATUS_LABELS[t.status]||'Not Started')}${t.location?' · '+esc(otLocationDisplay(t.location)):''}`,`setView('tasks');setTimeout(()=>openTaskSheet(${idx}),60)`);
+    });
+    html+='</div>';
+  }
+
+  // Then a continuous day-by-day list scrolling forward from today, skipping
+  // any day with nothing on it — same pattern as the native calendar app.
+  const WINDOW_DAYS=180;
+  let anyUpcoming=false;
+  for(let i=0;i<WINDOW_DAYS;i++){
+    const d=new Date(now);
+    d.setDate(now.getDate()+i);
+    const dateStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     const dayTasks=state.tasks.filter(t=>t.dueDate===dateStr);
     const dayNotes=state.notes.filter(n=>n.date===dateStr);
-    if(dayTasks.length===0&&dayNotes.length===0)return;
-    const d=new Date(dateStr+'T00:00:00');
-    detailHTML+=`<div class="cal-week-day-label">${WD_FULL[d.getDay()]}, ${short(d)}</div>`;
+    if(dayTasks.length===0&&dayNotes.length===0)continue;
+    anyUpcoming=true;
+    const isToday=dateStr===todayStr;
+    html+=`<div class="cal-agenda-day"><div class="cal-agenda-day-label${isToday?' is-today':''}">${isToday?'Today · ':''}<span class="day-num">${WD_FULL[d.getDay()]}, ${short(d)}</span></div>`;
     dayTasks.forEach(t=>{
-      const i=state.tasks.indexOf(t);
-      detailHTML+=`<div class="cal-week-item" onclick="setView('tasks');setTimeout(()=>openTaskSheet(${i}),60)">
-        <span class="cal-dot cal-dot-task"></span>
-        <div><div class="cal-week-item-title">${esc(t.title)}</div><div class="cal-week-item-sub">${esc(TASK_STATUS_LABELS[t.status]||'Not Started')}${t.location?' · '+esc(otLocationDisplay(t.location)):''}</div></div>
-      </div>`;
+      const idx=state.tasks.indexOf(t);
+      html+=agendaItemHTML('task',esc(t.title),`${esc(TASK_STATUS_LABELS[t.status]||'Not Started')}${t.location?' · '+esc(otLocationDisplay(t.location)):''}`,`setView('tasks');setTimeout(()=>openTaskSheet(${idx}),60)`);
     });
     dayNotes.forEach(n=>{
-      const i=state.notes.indexOf(n);
+      const idx=state.notes.indexOf(n);
       const preview=n.content?(n.content.length>70?n.content.slice(0,70)+'…':n.content):'';
-      detailHTML+=`<div class="cal-week-item" onclick="setView('notes');setTimeout(()=>openNoteSheet(${i}),60)">
-        <span class="cal-dot cal-dot-note"></span>
-        <div><div class="cal-week-item-title">${esc(n.title)}</div>${preview?`<div class="cal-week-item-sub">${esc(preview)}</div>`:''}</div>
-      </div>`;
+      html+=agendaItemHTML('note',esc(n.title),preview,`setView('notes');setTimeout(()=>openNoteSheet(${idx}),60)`);
     });
-  });
-  document.getElementById('calWeekDetails').innerHTML=detailHTML||'<div class="empty">No tasks or notes this week.</div>';
+    html+='</div>';
+  }
+  if(!overdue.length&&!anyUpcoming){
+    html='<div class="cal-agenda-empty">No upcoming tasks or notes in the next 6 months.</div>';
+  }
+  wrap.innerHTML=html;
 }
 function getEventsListForDate(dateStr){
   const items=[];
