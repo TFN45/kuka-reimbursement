@@ -4924,13 +4924,25 @@ function renderOTHistory(){
     wrap.appendChild(div);
   });
 }
+function otEntryHasHours(e){
+  return (e.ot1x||0)+(e.ot15x||0)+(e.ot3x||0)+(e.otCustom||0)>0;
+}
+// Shared by every OT export template (current form + any future one): a
+// shift that fell entirely within standard hours isn't overtime and
+// shouldn't appear as a row on a formal approval form. Keeping this rule in
+// one place means a future second template automatically stays consistent
+// with this one instead of needing the same filter re-implemented.
+function getOTEntriesForExport(){
+  return state.otEntries.filter(otEntryHasHours);
+}
 function buildOTPrint(){
   const target=document.getElementById('otPrintPage');
   if(!target)return;
+  const exportEntries=getOTEntriesForExport();
   let rows='';
-  const n=Math.max(state.otEntries.length,1);
+  const n=Math.max(exportEntries.length,1);
   for(let i=0;i<n;i++){
-    const e=state.otEntries[i];
+    const e=exportEntries[i];
     const detailsText=e?[
       e.details,
       e.location?`📍 ${otLocationDisplay(e.location)}`:'',
