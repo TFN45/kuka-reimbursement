@@ -2862,8 +2862,22 @@ async function saveEntry(){
   }catch(err){
     alert('Could not save one or more receipt images (storage may be full) — the expense item will be saved with whatever did save successfully.');
   }
-  if(editIndex===null)state.entries.push(e);else state.entries[editIndex]=e;
-  state.entries.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const entryMonthKey=monthKeyOf(dateVal.slice(0,7));
+  if(entryMonthKey!==currentMonthKey){
+    // This entry's date belongs to a different month than the one currently
+    // being viewed/edited — file it under the correct month instead of
+    // silently leaving it (with the "wrong" date) inside the current month's
+    // array, where it would never show up on that month's list or PDF.
+    if(editIndex!==null)state.entries.splice(editIndex,1);
+    if(!state.months[entryMonthKey])state.months[entryMonthKey]=[];
+    state.months[entryMonthKey].push(e);
+    state.months[entryMonthKey].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    state.entries.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    noteMsg(`✓ Saved to ${monthLabel(entryMonthKey)||entryMonthKey} (matches the date entered)`);
+  }else{
+    if(editIndex===null)state.entries.push(e);else state.entries[editIndex]=e;
+    state.entries.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  }
   persist();render();
   btn.disabled=false;
   closeSheet();
@@ -3100,6 +3114,18 @@ document.getElementById('importFile').addEventListener('change',ev=>{
         ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes','otBaseSalary','otMidnightWeekday','otMidnightHoliday','workDays','ocrEnabled'].forEach(k=>{
           if(!state.emp[k]&&p.state.emp[k])state.emp[k]=p.state.emp[k];
         });
+        // Belt-and-suspenders: coerce numeric settings to safe finite numbers so a
+        // corrupted or hand-edited backup file can never inject NaN into the OT/pay
+        // calculations, even indirectly through a settings value.
+        for(const k of['mileageRate','otBreakMinutes','otBaseSalary','otMidnightWeekday','otMidnightHoliday']){
+          if(state.emp[k]!==undefined){
+            const n=Number(state.emp[k]);
+            state.emp[k]=Number.isFinite(n)?n:undefined;
+          }
+        }
+        if(state.emp.workDays!==undefined&&!(Array.isArray(state.emp.workDays)&&state.emp.workDays.every(d=>Number.isInteger(d)&&d>=0&&d<=6))){
+          state.emp.workDays=undefined;
+        }
         if(Array.isArray(p.state.emp.descPresets)){
           p.state.emp.descPresets.forEach(d=>{
             if(!state.emp.descPresets.some(x=>x.toLowerCase()===d.toLowerCase()))state.emp.descPresets.push(d);
@@ -3115,7 +3141,11 @@ document.getElementById('importFile').addEventListener('change',ev=>{
       let missingImages=false;
       for(const key of newKeys){
         const items=importedMonths[key];
-        items.forEach(e=>{if(!e.id)e.id=uid();});
+        items.forEach(e=>{
+          if(!e.id)e.id=uid();
+          e.amount=Number(e.amount);
+          if(!Number.isFinite(e.amount))e.amount=0;
+        });
         state.months[key]=items;
         for(const e of items){
           const du=p.receipts&&p.receipts[e.id];
@@ -3154,7 +3184,17 @@ document.getElementById('importFile').addEventListener('change',ev=>{
       }
       for(const key of newOTKeys){
         const items=importedOTMonths[key];
-        items.forEach(e=>{if(!e.id)e.id=uid();});
+        items.forEach(e=>{
+          if(!e.id)e.id=uid();
+          for(const k of['ot1x','ot15x','ot3x','otCustom']){
+            e[k]=Number(e[k]);
+            if(!Number.isFinite(e[k]))e[k]=0;
+          }
+          if(e.customRate!=null){
+            e.customRate=Number(e.customRate);
+            if(!Number.isFinite(e.customRate))e.customRate=null;
+          }
+        });
         state.otMonths[key]=items;
       }
       if(newHolidays.length){
@@ -4604,10 +4644,10 @@ function saveOTEntry(){
     const nightOT=Math.min(afterMidnightHours,totalOT);
     const remaining=Math.round((totalOT-nightOT)*100)/100;
     // After-midnight multiplier is configurable, split by weekday vs holiday.
+    // Falls back to 3x if the stored setting is ever missing or not a valid number.
     const isHolidayEntry=otSelectedDayType==='weekly_holiday'||otSelectedDayType==='public_holiday';
-    const midnightRate=isHolidayEntry
-      ?(state.emp.otMidnightHoliday!==undefined?Number(state.emp.otMidnightHoliday):3)
-      :(state.emp.otMidnightWeekday!==undefined?Number(state.emp.otMidnightWeekday):3);
+    const rawMidnightRate=Number(isHolidayEntry?state.emp.otMidnightHoliday:state.emp.otMidnightWeekday);
+    const midnightRate=Number.isFinite(rawMidnightRate)&&rawMidnightRate>0?rawMidnightRate:3;
     // Allocate the pre-midnight remainder back to its original rate buckets,
     // draining the highest-rate buckets last so nothing is over-credited.
     let left=remaining;
@@ -4650,7 +4690,15 @@ function saveOTEntry(){
       otCustom:useStd3x?0:nightOT,
       customRate:useStd3x?null:midnightRate
     };
-    if(otEditIndex===null)state.otEntries.push(entryA);else state.otEntries[otEditIndex]=entryA;
+    const entryAMonthKey=monthKeyOf(date.slice(0,7));
+    if(entryAMonthKey!==otCurrentMonthKey){
+      if(otEditIndex!==null)state.otEntries.splice(otEditIndex,1);
+      if(!state.otMonths[entryAMonthKey])state.otMonths[entryAMonthKey]=[];
+      state.otMonths[entryAMonthKey].push(entryA);
+      state.otMonths[entryAMonthKey].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    }else{
+      if(otEditIndex===null)state.otEntries.push(entryA);else state.otEntries[otEditIndex]=entryA;
+    }
     // If the after-midnight half lands in the next calendar month, file it under
     // that month instead of the one being edited — otherwise it would print on
     // the wrong month's OT form and go missing from the next month's totals.
@@ -4677,8 +4725,20 @@ function saveOTEntry(){
     ot1x:calc.ot1x,ot15x:calc.ot15x,ot3x:calc.ot3x,
     otCustom:calc.otCustom,customRate
   };
-  if(otEditIndex===null)state.otEntries.push(e);else state.otEntries[otEditIndex]=e;
-  state.otEntries.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const entryMonthKey=monthKeyOf(date.slice(0,7));
+  if(entryMonthKey!==otCurrentMonthKey){
+    // Same fix as Expense: route to the month the date actually falls in,
+    // instead of always saving into whichever OT month is currently open.
+    if(otEditIndex!==null)state.otEntries.splice(otEditIndex,1);
+    if(!state.otMonths[entryMonthKey])state.otMonths[entryMonthKey]=[];
+    state.otMonths[entryMonthKey].push(e);
+    state.otMonths[entryMonthKey].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    state.otEntries.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    noteMsg(`✓ Saved to ${monthLabel(entryMonthKey)||entryMonthKey} (matches the date entered)`);
+  }else{
+    if(otEditIndex===null)state.otEntries.push(e);else state.otEntries[otEditIndex]=e;
+    state.otEntries.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  }
   persist();renderOT();
   closeOTSheet();
 }
