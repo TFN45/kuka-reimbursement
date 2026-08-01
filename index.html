@@ -165,6 +165,30 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
 }
 .cal-legend span{display:flex;align-items:center;gap:5px}
 .cal-legend .cal-dot{width:8px;height:8px}
+.cal-mode-toggle{
+  display:flex;gap:4px;background:var(--surface-2);border-radius:99px;
+  padding:4px;margin-bottom:14px;
+}
+.cal-mode-btn{
+  flex:1;font-family:inherit;font-size:.82rem;font-weight:600;
+  padding:8px 4px;border:none;border-radius:99px;background:none;
+  color:var(--ink-2);cursor:pointer;
+}
+.cal-mode-btn.active{background:var(--card);color:var(--ink);box-shadow:var(--shadow-sm)}
+.cal-week-day-label{
+  font-size:.72rem;font-weight:700;color:var(--ink-3);letter-spacing:.04em;
+  margin:16px 0 4px;text-transform:uppercase;
+}
+.cal-week-day-label:first-child{margin-top:4px}
+.cal-week-item{
+  display:flex;gap:10px;align-items:flex-start;padding:10px 12px;
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);
+  margin-bottom:6px;cursor:pointer;
+}
+.cal-week-item:active{background:var(--kuka-soft)}
+.cal-week-item .cal-dot{width:9px;height:9px;margin-top:5px;flex-shrink:0}
+.cal-week-item-title{font-weight:600;font-size:.87rem;color:var(--ink)}
+.cal-week-item-sub{font-size:.76rem;color:var(--ink-2);margin-top:2px}
 .cal-day-item{
   display:flex;gap:10px;align-items:flex-start;padding:11px 0;
   border-bottom:1px solid var(--line);
@@ -426,6 +450,21 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
 .entry-thumb:active{background:var(--bg)}
 .entry-thumb img{width:34px;height:34px;object-fit:cover;border-radius:6px;display:block}
 .entry-actions{display:flex;flex-direction:column;gap:6px}
+.entry-list-wrap{position:relative}
+.entry-list-scroll{
+  max-height:440px;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+}
+.entry-list-wrap.has-more::after{
+  content:'';position:absolute;left:0;right:0;bottom:0;height:26px;
+  background:linear-gradient(to bottom,transparent,var(--bg) 85%);
+  pointer-events:none;
+}
+.entry-list-more-hint{
+  display:none;text-align:center;font-size:.72rem;color:var(--ink-3);
+  padding:2px 0 8px;
+}
+.entry-list-wrap.has-more+.entry-list-more-hint{display:block}
 .icon-btn{
   border:1px solid var(--line);background:var(--card);border-radius:8px;
   width:36px;height:36px;font-size:.85rem;cursor:pointer;color:var(--ink-2);
@@ -862,7 +901,8 @@ try{
       <button class="search-clear" id="searchClearBtn" onclick="clearEntrySearch()" style="display:none">✕</button>
     </div>
     <div class="filter-chip-row" id="statusFilterRow"></div>
-    <div id="entryList"></div>
+    <div class="entry-list-wrap" id="entryListWrap"><div class="entry-list-scroll" id="entryList"></div></div>
+    <div class="entry-list-more-hint">↕ Scroll for older items</div>
     <div class="empty" id="emptyState">No expense items yet — tap "Add Expense" to begin.</div>
     <div class="empty" id="noSearchResults" style="display:none">No items match your search or filter.</div>
 
@@ -901,7 +941,8 @@ try{
     </div>
 
     <div class="section-label">OT Entries</div>
-    <div id="otEntryList"></div>
+    <div class="entry-list-wrap" id="otEntryListWrap"><div class="entry-list-scroll" id="otEntryList"></div></div>
+    <div class="entry-list-more-hint">↕ Scroll for older items</div>
     <div class="empty" id="otEmptyState">No OT entries yet — tap "Add OT Entry" to begin.</div>
 
     <div class="btn-row">
@@ -936,7 +977,12 @@ try{
   </div>
 
   <div id="calendarView">
-    <div class="card">
+    <div class="cal-mode-toggle">
+      <button type="button" class="cal-mode-btn active" data-mode="month" onclick="setCalendarMode('month')">Month</button>
+      <button type="button" class="cal-mode-btn" data-mode="week" onclick="setCalendarMode('week')">Week</button>
+    </div>
+
+    <div class="card" id="calMonthPane">
       <div class="cal-header">
         <button class="cal-nav-btn" onclick="calendarStepMonth(-1)" aria-label="Previous month">‹</button>
         <span class="cal-month-label" id="calMonthLabel"></span>
@@ -945,6 +991,19 @@ try{
       <div class="cal-weekdays"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
       <div class="cal-grid" id="calGrid"></div>
     </div>
+
+    <div class="card" id="calWeekPane" style="display:none">
+      <div class="cal-header">
+        <button class="cal-nav-btn" onclick="calendarStepWeek(-1)" aria-label="Previous week">‹</button>
+        <span class="cal-month-label" id="calWeekLabel"></span>
+        <button class="cal-nav-btn" onclick="calendarStepWeek(1)" aria-label="Next week">›</button>
+      </div>
+      <div class="cal-weekdays"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
+      <div class="cal-grid" id="calWeekStrip"></div>
+    </div>
+
+    <div id="calWeekDetails" style="display:none"></div>
+
     <div class="cal-legend">
       <span><i class="cal-dot cal-dot-expense"></i>Expense</span>
       <span><i class="cal-dot cal-dot-ot"></i>OT</span>
@@ -1874,7 +1933,7 @@ function setView(view){
   document.getElementById('headerTagline').textContent=taglines[view]||'';
   window.scrollTo(0,0);
   if(view==='settings')requestAnimationFrame(()=>requestAnimationFrame(initSignaturePad));
-  if(view==='home')renderCalendar();
+  if(view==='home')renderCalendarActive();
   if(view==='tasks')renderTasks();
   if(view==='notes')renderNotes();
   document.getElementById('fabBtn').style.display=view==='home'?'flex':'none';
@@ -3249,6 +3308,15 @@ function renderStatusFilterRow(){
     `<button type="button" class="filter-chip${activeStatusFilter===key?' active':''}" onclick="setStatusFilter('${key}')">${label}${key!=='all'&&counts[key]?` (${counts[key]})`:''}</button>`
   ).join('');
 }
+function updateListOverflowHint(wrapId){
+  const wrap=document.getElementById(wrapId);
+  if(!wrap)return;
+  const scroller=wrap.firstElementChild;
+  if(!scroller)return;
+  requestAnimationFrame(()=>{
+    wrap.classList.toggle('has-more',scroller.scrollHeight>scroller.clientHeight+2);
+  });
+}
 function renderEntryListOnly(){
   const list=document.getElementById('entryList');
   list.innerHTML='';
@@ -3298,6 +3366,7 @@ function renderEntryListOnly(){
     list.appendChild(div);
   });
   renderStatusFilterRow();
+  updateListOverflowHint('entryListWrap');
 }
 function render(){
   renderEntryListOnly();
@@ -4077,10 +4146,31 @@ function renderNotes(){
 ========================================================= */
 const CAL_MONTH_NAMES=['January','February','March','April','May','June','July','August','September','October','November','December'];
 let calendarYear=null,calendarMonth=null; // calendarMonth is 1-12
+let calendarMode='month'; // 'month' | 'week' — plain in-memory variable, never persisted, so every fresh app launch starts on Month as intended
+let calendarWeekAnchor=null; // Date for the Sunday that starts the currently viewed week
 function initCalendarToToday(){
   const now=new Date();
   calendarYear=now.getFullYear();
   calendarMonth=now.getMonth()+1;
+}
+function initCalendarWeekToToday(){
+  const now=new Date();
+  const sunday=new Date(now);
+  sunday.setDate(now.getDate()-now.getDay());
+  sunday.setHours(0,0,0,0);
+  calendarWeekAnchor=sunday;
+}
+function renderCalendarActive(){
+  if(calendarMode==='week')renderCalendarWeek();
+  else renderCalendar();
+}
+function setCalendarMode(mode){
+  calendarMode=mode;
+  document.querySelectorAll('.cal-mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+  document.getElementById('calMonthPane').style.display=mode==='month'?'block':'none';
+  document.getElementById('calWeekPane').style.display=mode==='week'?'block':'none';
+  document.getElementById('calWeekDetails').style.display=mode==='week'?'block':'none';
+  renderCalendarActive();
 }
 function calendarStepMonth(delta){
   calendarMonth+=delta;
@@ -4088,9 +4178,15 @@ function calendarStepMonth(delta){
   if(calendarMonth>12){calendarMonth=1;calendarYear++;}
   renderCalendar();
 }
+function calendarStepWeek(delta){
+  if(!calendarWeekAnchor)initCalendarWeekToToday();
+  calendarWeekAnchor.setDate(calendarWeekAnchor.getDate()+delta*7);
+  renderCalendarWeek();
+}
 function calendarGoToday(){
   initCalendarToToday();
-  renderCalendar();
+  initCalendarWeekToToday();
+  renderCalendarActive();
 }
 function collectEventsForCalendarMonth(year,month){
   const prefix=year+'-'+String(month).padStart(2,'0');
@@ -4154,8 +4250,78 @@ function renderCalendar(){
   }
   grid.innerHTML=cells;
   // Colour the weekday header letters to match the configured work week
-  const wdSpans=document.querySelectorAll('.cal-weekdays span');
+  const wdSpans=document.querySelectorAll('#calMonthPane .cal-weekdays span');
   wdSpans.forEach((sp,i)=>sp.classList.toggle('wd-nonwork',!isWorkDay(i)));
+}
+function renderCalendarWeek(){
+  if(!calendarWeekAnchor)initCalendarWeekToToday();
+  const strip=document.getElementById('calWeekStrip');
+  if(!strip)return;
+  const dates=[];
+  for(let i=0;i<7;i++){
+    const d=new Date(calendarWeekAnchor);
+    d.setDate(calendarWeekAnchor.getDate()+i);
+    dates.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
+  }
+  const startD=new Date(dates[0]+'T00:00:00'),endD=new Date(dates[6]+'T00:00:00');
+  const short=d=>CAL_MONTH_NAMES[d.getMonth()].slice(0,3)+' '+d.getDate();
+  document.getElementById('calWeekLabel').textContent=startD.getMonth()===endD.getMonth()
+    ?`${short(startD)}–${endD.getDate()}, ${endD.getFullYear()}`
+    :`${short(startD)} – ${short(endD)}, ${endD.getFullYear()}`;
+
+  // A week can span two (or, at year end, even two different) months —
+  // gather events from every month touched by this week's 7 dates.
+  const events={};
+  new Set(dates.map(d=>d.slice(0,7))).forEach(mk=>{
+    const[y,m]=mk.split('-').map(Number);
+    Object.assign(events,collectEventsForCalendarMonth(y,m));
+  });
+  const now=new Date();
+  const todayStr=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  const dotCats=['expense','ot','task','note'];
+  let cells='';
+  dates.forEach((dateStr,weekday)=>{
+    const isToday=dateStr===todayStr;
+    const ev=events[dateStr];
+    const hol=holidayFor(dateStr);
+    const dots=ev?dotCats.filter(c=>ev[c]).map(c=>`<span class="cal-dot cal-dot-${c}"></span>`).join(''):'';
+    const tappable=ev||hol;
+    const d=Number(dateStr.slice(8,10));
+    cells+=`<div class="cal-cell${isToday?' cal-today':''}${(!isWorkDay(weekday)||hol)?' cal-nonwork':''}${tappable?' cal-has-event':''}"${tappable?` onclick="openCalendarDay('${dateStr}')"`:''}${hol?` title="${escAttr(hol.name)}"`:''}>
+      <span class="cal-daynum">${d}</span>
+      <div class="cal-dots">${dots}</div>
+    </div>`;
+  });
+  strip.innerHTML=cells;
+  const wdSpans=document.querySelectorAll('#calWeekPane .cal-weekdays span');
+  wdSpans.forEach((sp,i)=>sp.classList.toggle('wd-nonwork',!isWorkDay(i)));
+
+  // Detailed Task/Note list for the week, grouped by day.
+  const WD_FULL=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  let detailHTML='';
+  dates.forEach(dateStr=>{
+    const dayTasks=state.tasks.filter(t=>t.dueDate===dateStr);
+    const dayNotes=state.notes.filter(n=>n.date===dateStr);
+    if(dayTasks.length===0&&dayNotes.length===0)return;
+    const d=new Date(dateStr+'T00:00:00');
+    detailHTML+=`<div class="cal-week-day-label">${WD_FULL[d.getDay()]}, ${short(d)}</div>`;
+    dayTasks.forEach(t=>{
+      const i=state.tasks.indexOf(t);
+      detailHTML+=`<div class="cal-week-item" onclick="setView('tasks');setTimeout(()=>openTaskSheet(${i}),60)">
+        <span class="cal-dot cal-dot-task"></span>
+        <div><div class="cal-week-item-title">${esc(t.title)}</div><div class="cal-week-item-sub">${esc(TASK_STATUS_LABELS[t.status]||'Not Started')}${t.location?' · '+esc(otLocationDisplay(t.location)):''}</div></div>
+      </div>`;
+    });
+    dayNotes.forEach(n=>{
+      const i=state.notes.indexOf(n);
+      const preview=n.content?(n.content.length>70?n.content.slice(0,70)+'…':n.content):'';
+      detailHTML+=`<div class="cal-week-item" onclick="setView('notes');setTimeout(()=>openNoteSheet(${i}),60)">
+        <span class="cal-dot cal-dot-note"></span>
+        <div><div class="cal-week-item-title">${esc(n.title)}</div>${preview?`<div class="cal-week-item-sub">${esc(preview)}</div>`:''}</div>
+      </div>`;
+    });
+  });
+  document.getElementById('calWeekDetails').innerHTML=detailHTML||'<div class="empty">No tasks or notes this week.</div>';
 }
 function getEventsListForDate(dateStr){
   const items=[];
@@ -4292,7 +4458,7 @@ function toggleWorkDay(i){
   state.emp.workDays=days;
   persist();persistProfile();
   renderWorkDayRow();
-  if(currentView==='home')renderCalendar();
+  if(currentView==='home')renderCalendarActive();
 }
 function renderWorkDayRow(){
   const row=document.getElementById('workdayRow');
@@ -4627,6 +4793,7 @@ function renderOT(){
     payRow.style.display='none';
   }
   document.getElementById('otTotalDisplay').innerHTML=(sum1x+sum15x+sum3x+sumCustom).toFixed(2)+' <small>hrs</small>';
+  updateListOverflowHint('otEntryListWrap');
   renderOTHistory();
   buildOTPrint();
 }
