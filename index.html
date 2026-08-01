@@ -1356,15 +1356,17 @@ try{
       </div>
     </div>
     <div class="row2">
-      <div class="field"><label>Due Date</label><input id="taskDueDate" type="date"></div>
-      <div class="field">
-        <label>Status</label>
-        <select id="taskStatus">
-          <option value="not_started">Not Started</option>
-          <option value="in_progress">In Progress</option>
-          <option value="done">Done</option>
-        </select>
-      </div>
+      <div class="field"><label>Start Date <span class="required-mark">*</span></label><input id="taskStartDate" type="date"></div>
+      <div class="field"><label>End Date</label><input id="taskEndDate" type="date"></div>
+    </div>
+    <div class="holiday-notice" id="taskHolidayNotice" style="display:none"></div>
+    <div class="field">
+      <label>Status</label>
+      <select id="taskStatus">
+        <option value="not_started">Not Started</option>
+        <option value="in_progress">In Progress</option>
+        <option value="done">Done</option>
+      </select>
     </div>
     <div class="field"><label>Details</label><input id="taskDetails" placeholder="Optional notes about this task"></div>
     <div class="btn-row">
@@ -3926,24 +3928,74 @@ function filterNoteProvinces(){locPickerFilterProvinces('note');}
 let taskEditIndex=null;
 let taskStatusFilter='all';
 const TASK_STATUS_LABELS={not_started:'Not Started',in_progress:'In Progress',done:'Done'};
+// Backward-compatible accessors: older tasks only ever had a single dueDate.
+// Reading through these means existing tasks keep working (as a single-day
+// span) without needing to migrate stored data; any task that gets saved
+// from here on writes startDate/endDate directly.
+function taskStartDate(t){return t.startDate||t.dueDate||'';}
+function taskEndDate(t){return t.endDate||t.startDate||t.dueDate||'';}
+function isEligibleTaskDate(dateStr){
+  const d=new Date(dateStr+'T00:00:00');
+  if(holidayFor(dateStr))return false;
+  if(!isWorkDay(d.getDay()))return false;
+  return true;
+}
+function taskDatesInRange(t){
+  const start=taskStartDate(t),end=taskEndDate(t);
+  if(!start)return[];
+  const dates=[];
+  let cur=start,guard=0;
+  while(cur<=end&&guard<400){
+    if(isEligibleTaskDate(cur))dates.push(cur);
+    cur=addDaysISO(cur,1);
+    guard++;
+  }
+  return dates;
+}
+function updateTaskHolidayNotice(){
+  const el=document.getElementById('taskHolidayNotice');
+  if(!el)return;
+  const start=document.getElementById('taskStartDate').value;
+  const end=document.getElementById('taskEndDate').value||start;
+  const hits=[];
+  if(start){const h=holidayFor(start);if(h)hits.push(`${fmtDateShort(start)}: ${h.name}`);}
+  if(end&&end!==start){const h=holidayFor(end);if(h)hits.push(`${fmtDateShort(end)}: ${h.name}`);}
+  if(hits.length){
+    el.innerHTML=`🎌 ${hits.map(esc).join(' · ')} — falls on a public holiday.`;
+    el.style.display='block';
+  }else{
+    el.style.display='none';
+  }
+}
 function openTaskSheet(i=null){
   taskEditIndex=i;
   document.getElementById('taskSheetTitle').textContent=i===null?'Add Task':'Edit Task';
-  const t=i===null?{title:'',location:null,dueDate:'',status:'not_started',details:''}:state.tasks[i];
+  const t=i===null?{title:'',location:null,startDate:'',endDate:'',status:'not_started',details:''}:state.tasks[i];
   document.getElementById('taskTitle').value=t.title||'';
-  document.getElementById('taskDueDate').value=t.dueDate||'';
+  document.getElementById('taskStartDate').value=taskStartDate(t);
+  document.getElementById('taskEndDate').value=taskEndDate(t);
   document.getElementById('taskStatus').value=t.status||'not_started';
   document.getElementById('taskDetails').value=t.details||'';
   document.getElementById('taskCompanyInput').value='';
   document.getElementById('taskProvinceInput').value='';
   locPickerState.task=t.location?{name:t.location.name,province:t.location.province}:null;
   locPickerRenderTag('task');
+  updateTaskHolidayNotice();
   document.getElementById('taskOverlay').classList.add('open');
 }
 function closeTaskSheet(){document.getElementById('taskOverlay').classList.remove('open');}
+document.getElementById('taskStartDate').addEventListener('input',ev=>{
+  // For a brand-new task, keep End in sync with Start until the user
+  // deliberately sets an End date of their own.
+  const endEl=document.getElementById('taskEndDate');
+  if(taskEditIndex===null&&(!endEl.value||endEl.value<ev.target.value))endEl.value=ev.target.value;
+  updateTaskHolidayNotice();
+});
+document.getElementById('taskEndDate').addEventListener('input',updateTaskHolidayNotice);
 function saveTask(){
   const title=document.getElementById('taskTitle').value.trim();
-  const dueDate=document.getElementById('taskDueDate').value;
+  const startDate=document.getElementById('taskStartDate').value;
+  let endDate=document.getElementById('taskEndDate').value||startDate;
   const status=document.getElementById('taskStatus').value;
   const details=document.getElementById('taskDetails').value.trim();
   let leftoverCompany=document.getElementById('taskCompanyInput').value.trim();
@@ -3958,11 +4010,16 @@ function saveTask(){
     alert(`You started adding a site (${leftoverCompany||'no name yet'} / ${leftoverProvince||'no province yet'}) but haven't finished pairing it with a province. Please complete it or clear the box before saving.`);
     return;
   }
+  if(startDate&&endDate&&endDate<startDate){
+    alert('End Date can\'t be earlier than Start Date.');
+    document.getElementById('taskEndDate').focus();
+    return;
+  }
   const sel=locPickerState.task;
   const t={
     id:taskEditIndex===null?uid():state.tasks[taskEditIndex].id,
     title,location:sel?{name:sel.name,province:sel.province}:null,
-    dueDate,status,details,
+    startDate,endDate,status,details,
     createdAt:taskEditIndex===null?new Date().toISOString():state.tasks[taskEditIndex].createdAt
   };
   if(taskEditIndex===null)state.tasks.push(t);else state.tasks[taskEditIndex]=t;
@@ -3992,19 +4049,22 @@ function renderTasks(){
   const sorted=visible.slice().sort((a,b)=>{
     const aDone=a.status==='done',bDone=b.status==='done';
     if(aDone!==bDone)return aDone?1:-1;
-    if(!a.dueDate&&!b.dueDate)return 0;
-    if(!a.dueDate)return 1;
-    if(!b.dueDate)return-1;
-    return a.dueDate.localeCompare(b.dueDate);
+    const aStart=taskStartDate(a),bStart=taskStartDate(b);
+    if(!aStart&&!bStart)return 0;
+    if(!aStart)return 1;
+    if(!bStart)return-1;
+    return aStart.localeCompare(bStart);
   });
   document.getElementById('taskEmptyState').style.display=state.tasks.length?'none':'block';
   const statusColor={not_started:'draft',in_progress:'submitted',done:'approved'};
   sorted.forEach(t=>{
     const i=state.tasks.indexOf(t);
+    const start=taskStartDate(t),end=taskEndDate(t);
+    const dateLabel=start?(end&&end!==start?`${fmtDateShort(start)} → ${fmtDateShort(end)}`:fmtDateShort(start)):'—';
     const div=document.createElement('div');
     div.className='entry';
     div.innerHTML=`
-      <div class="entry-date">${t.dueDate?fmtDateShort(t.dueDate):'—'}</div>
+      <div class="entry-date">${dateLabel}</div>
       <div class="entry-body">
         <div class="entry-top-row">
           <div class="entry-desc"${t.status==='done'?' style="text-decoration:line-through;color:var(--ink-2)"':''}>${esc(t.title)}</div>
@@ -4226,7 +4286,7 @@ function collectEventsForCalendarMonth(year,month){
   };
   Object.values(state.months).forEach(items=>items.forEach(e=>mark(e.date,'expense')));
   Object.values(state.otMonths).forEach(items=>items.forEach(e=>mark(e.date,'ot')));
-  state.tasks.forEach(t=>mark(t.dueDate,'task'));
+  state.tasks.forEach(t=>taskDatesInRange(t).forEach(d=>mark(d,'task')));
   state.notes.forEach(n=>mark(n.date,'note'));
   return results;
 }
@@ -4301,13 +4361,15 @@ function renderCalendarWeek(){
 
   let html='';
   // Overdue tasks surface at the top regardless of date, so nothing slips through.
-  const overdue=state.tasks.filter(t=>t.dueDate&&t.dueDate<todayStr&&t.status!=='done')
-    .sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
+  const overdue=state.tasks.filter(t=>taskEndDate(t)&&taskEndDate(t)<todayStr&&t.status!=='done')
+    .sort((a,b)=>taskEndDate(a).localeCompare(taskEndDate(b)));
   if(overdue.length){
     html+='<div class="cal-agenda-day cal-agenda-overdue"><div class="cal-agenda-day-label">⚠ Overdue</div>';
     overdue.forEach(t=>{
       const idx=state.tasks.indexOf(t);
-      html+=agendaItemHTML('task',esc(t.title),`${fmtDateShort(t.dueDate)} · ${esc(TASK_STATUS_LABELS[t.status]||'Not Started')}${t.location?' · '+esc(otLocationDisplay(t.location)):''}`,`setView('tasks');setTimeout(()=>openTaskSheet(${idx}),60)`);
+      const start=taskStartDate(t),end=taskEndDate(t);
+      const rangeLabel=end&&end!==start?`${fmtDateShort(start)} → ${fmtDateShort(end)}`:fmtDateShort(end);
+      html+=agendaItemHTML('task',esc(t.title),`${rangeLabel} · ${esc(TASK_STATUS_LABELS[t.status]||'Not Started')}${t.location?' · '+esc(otLocationDisplay(t.location)):''}`,`setView('tasks');setTimeout(()=>openTaskSheet(${idx}),60)`);
     });
     html+='</div>';
   }
@@ -4320,7 +4382,7 @@ function renderCalendarWeek(){
     const d=new Date(now);
     d.setDate(now.getDate()+i);
     const dateStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    const dayTasks=state.tasks.filter(t=>t.dueDate===dateStr);
+    const dayTasks=state.tasks.filter(t=>taskDatesInRange(t).includes(dateStr));
     const dayNotes=state.notes.filter(n=>n.date===dateStr);
     if(dayTasks.length===0&&dayNotes.length===0)continue;
     anyUpcoming=true;
@@ -4328,7 +4390,9 @@ function renderCalendarWeek(){
     html+=`<div class="cal-agenda-day"><div class="cal-agenda-day-label${isToday?' is-today':''}">${isToday?'Today · ':''}<span class="day-num">${WD_FULL[d.getDay()]}, ${short(d)}</span></div>`;
     dayTasks.forEach(t=>{
       const idx=state.tasks.indexOf(t);
-      html+=agendaItemHTML('task',esc(t.title),`${esc(TASK_STATUS_LABELS[t.status]||'Not Started')}${t.location?' · '+esc(otLocationDisplay(t.location)):''}`,`setView('tasks');setTimeout(()=>openTaskSheet(${idx}),60)`);
+      const start=taskStartDate(t),end=taskEndDate(t);
+      const rangeNote=end&&end!==start?`${fmtDateShort(start)} → ${fmtDateShort(end)} · `:'';
+      html+=agendaItemHTML('task',esc(t.title),`${rangeNote}${esc(TASK_STATUS_LABELS[t.status]||'Not Started')}${t.location?' · '+esc(otLocationDisplay(t.location)):''}`,`setView('tasks');setTimeout(()=>openTaskSheet(${idx}),60)`);
     });
     dayNotes.forEach(n=>{
       const idx=state.notes.indexOf(n);
@@ -4351,7 +4415,11 @@ function getEventsListForDate(dateStr){
     if(e.date===dateStr)items.push({cat:'ot',title:`${e.timeIn}–${e.timeOut}`,sub:e.details||(e.location?otLocationDisplay(e.location):'')});
   }));
   state.tasks.forEach(t=>{
-    if(t.dueDate===dateStr)items.push({cat:'task',title:t.title,sub:TASK_STATUS_LABELS[t.status]||'Not Started'});
+    if(taskDatesInRange(t).includes(dateStr)){
+      const start=taskStartDate(t),end=taskEndDate(t);
+      const rangeNote=end&&end!==start?`${fmtDateShort(start)} → ${fmtDateShort(end)} · `:'';
+      items.push({cat:'task',title:t.title,sub:rangeNote+(TASK_STATUS_LABELS[t.status]||'Not Started')});
+    }
   });
   state.notes.forEach(n=>{
     if(n.date===dateStr)items.push({cat:'note',title:n.title,sub:n.content?(n.content.length>80?n.content.slice(0,80)+'…':n.content):''});
