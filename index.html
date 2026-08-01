@@ -1135,6 +1135,7 @@ try{
       <label>Day Type</label>
       <div class="daytype-row">
         <button type="button" class="daytype-btn active" data-val="normal" onclick="selectDayType('normal')">Normal Workday</button>
+        <button type="button" class="daytype-btn" data-val="callback" onclick="selectDayType('callback')">Callback / After-Hours</button>
         <button type="button" class="daytype-btn" data-val="weekly_holiday" onclick="selectDayType('weekly_holiday')">Weekly Holiday</button>
         <button type="button" class="daytype-btn" data-val="public_holiday" onclick="selectDayType('public_holiday')">Public Holiday</button>
         <button type="button" class="daytype-btn" data-val="custom" onclick="selectDayType('custom')">Other (Custom ×)</button>
@@ -1559,7 +1560,7 @@ function filterCompanies(){
       ?`<div class="province-empty">No match in your saved list — search a Province below to add "${esc(raw)}" as a new company</div>`
       :'<div class="province-empty">Type to search your saved companies, or enter a new one</div>';
   }else{
-    list.innerHTML=matches.map(p=>`<div class="province-item" onclick="selectCompanyFromList('${p.name.replace(/'/g,"\\'")}')">${esc(p.name)} <span style="color:var(--ink-2);font-family:'IBM Plex Mono',monospace;font-size:.75em">(${esc(p.abbr)})</span></div>`).join('');
+    list.innerHTML=matches.map(p=>`<div class="province-item" onclick="selectCompanyFromList('${escAttr(p.name).replace(/'/g,"\\'")}')">${esc(p.name)} <span style="color:var(--ink-2);font-family:'IBM Plex Mono',monospace;font-size:.75em">(${esc(p.abbr)})</span></div>`).join('');
   }
   list.classList.add('open');
 }
@@ -3308,7 +3309,9 @@ function calcOTHours(timeIn,timeOut,dayType,customRate){
   if(totalMinutes<0)totalMinutes+=24*60;
   const stdHours=getOTStandardHours();
   const breakMin=Number(state.emp.otBreakMinutes)||0;
-  totalMinutes-=breakMin;
+  // A callback is a separate short trip after the normal shift — no meal break
+  // is taken, and the standard-hours allowance was already served earlier.
+  if(dayType!=='callback')totalMinutes-=breakMin;
   const totalHours=Math.max(0,totalMinutes/60);
   let ot1x=0,ot15x=0,ot3x=0,otCustom=0;
   if(dayType==='weekly_holiday'){
@@ -3316,6 +3319,8 @@ function calcOTHours(timeIn,timeOut,dayType,customRate){
     else{ot1x=stdHours;ot3x=totalHours-stdHours;}
   }else if(dayType==='public_holiday'){
     ot3x=totalHours;
+  }else if(dayType==='callback'){
+    ot15x=totalHours;
   }else if(dayType==='custom'){
     otCustom=Math.max(0,totalHours-stdHours);
   }else{
@@ -3345,7 +3350,9 @@ function updateOTCalcPreview(){
     const rate=parseFloat(document.getElementById('otCustomRate').value)||0;
     parts.push(`${r.otCustom.toFixed(2)} hrs @ ${rate||'?'}×`);
   }
-  el.textContent=`Total: ${r.totalHours.toFixed(2)} hrs`+(parts.length?' → '+parts.join(' + '):' (within standard hours, no OT)');
+  el.textContent=`Total: ${r.totalHours.toFixed(2)} hrs`
+    +(parts.length?' → '+parts.join(' + '):' (within standard hours, no OT)')
+    +(otSelectedDayType==='callback'?' — all hours count (no break/standard-hours deduction)':'');
 }
 document.getElementById('otTimeIn').addEventListener('input',updateOTCalcPreview);
 
@@ -3379,7 +3386,7 @@ function filterOTCompanies(){
       ?`<div class="province-empty">No match in your saved list — search a Province below to add "${esc(raw)}" as a new company</div>`
       :'<div class="province-empty">Type to search your saved companies, or enter a new one</div>';
   }else{
-    list.innerHTML=matches.map(p=>`<div class="province-item" onclick="selectOTCompanyFromList('${p.name.replace(/'/g,"\\'")}')">${esc(p.name)} <span style="color:var(--ink-2);font-family:'IBM Plex Mono',monospace;font-size:.75em">(${esc(p.abbr)})</span></div>`).join('');
+    list.innerHTML=matches.map(p=>`<div class="province-item" onclick="selectOTCompanyFromList('${escAttr(p.name).replace(/'/g,"\\'")}')">${esc(p.name)} <span style="color:var(--ink-2);font-family:'IBM Plex Mono',monospace;font-size:.75em">(${esc(p.abbr)})</span></div>`).join('');
   }
   list.classList.add('open');
 }
@@ -3452,7 +3459,7 @@ function locPickerFilterCompanies(scope){
       ?`<div class="province-empty">No match in your saved list — search a Province below to add "${esc(raw)}" as a new company</div>`
       :'<div class="province-empty">Type to search your saved companies, or enter a new one</div>';
   }else{
-    list.innerHTML=matches.map(p=>`<div class="province-item" onclick="locPickerSelectCompany('${scope}','${p.name.replace(/'/g,"\\'")}')">${esc(p.name)} <span style="color:var(--ink-2);font-family:'IBM Plex Mono',monospace;font-size:.75em">(${esc(p.abbr)})</span></div>`).join('');
+    list.innerHTML=matches.map(p=>`<div class="province-item" onclick="locPickerSelectCompany('${scope}','${escAttr(p.name).replace(/'/g,"\\'")}')">${esc(p.name)} <span style="color:var(--ink-2);font-family:'IBM Plex Mono',monospace;font-size:.75em">(${esc(p.abbr)})</span></div>`).join('');
   }
   list.classList.add('open');
 }
@@ -3961,30 +3968,44 @@ function saveOTEntry(){
   const crossesMidnight=timeToMinutes(timeOut)<timeToMinutes(timeIn);
   if(crossesMidnight){
     const nextDate=addOneDay(date);
+    // Calculate the WHOLE shift once (break + standard-hours allowance applied a
+    // single time), then split the resulting OT hours across the two dates.
+    const whole=calcOTHours(timeIn,timeOut,otSelectedDayType);
+    const afterMidnightHours=Math.round((timeToMinutes(timeOut)/60)*100)/100;
+    const totalOT=whole.ot1x+whole.ot15x+whole.ot3x+whole.otCustom;
+    // Hours past midnight are paid at 3x, capped by the OT actually earned.
+    const nightOT=Math.min(afterMidnightHours,totalOT);
+    const remaining=Math.round((totalOT-nightOT)*100)/100;
+    // Allocate the pre-midnight remainder back to its original rate buckets,
+    // draining the highest-rate buckets last so nothing is over-credited.
+    let left=remaining;
+    const take=v=>{const t=Math.min(v,left);left=Math.round((left-t)*100)/100;return Math.round(t*100)/100;};
+    const a1x=take(whole.ot1x);
+    const a15x=take(whole.ot15x);
+    const a3x=take(whole.ot3x);
+    const aCustom=take(whole.otCustom);
     const proceed=confirm(
       `Check Out (${timeOut}) is earlier than Check In (${timeIn}) — this session crosses midnight.\n\n`+
       `Your OT form can't have one entry span two dates, so this will be split into two entries automatically:\n\n`+
-      `• ${fmtDateFull(date)}: ${timeIn}–23:59 (as selected)\n`+
-      `• ${fmtDateFull(nextDate)}: 00:00–${timeOut} (auto 3× — after-midnight policy)\n\n`+
+      `• ${fmtDateFull(date)}: ${timeIn}–23:59 — ${remaining.toFixed(2)} OT hrs\n`+
+      `• ${fmtDateFull(nextDate)}: 00:00–${timeOut} — ${nightOT.toFixed(2)} hrs @ 3× (after-midnight policy)\n\n`+
       `Continue?`
     );
     if(!proceed)return;
     const locObj=otSelectedLocation?{name:otSelectedLocation.name,province:otSelectedLocation.province}:null;
-    const calcA=calcOTHours(timeIn,'23:59',otSelectedDayType);
     const entryA={
       id:otEditIndex===null?uid():state.otEntries[otEditIndex].id,
       date,timeIn,timeOut:'23:59',dayType:otSelectedDayType,
       location:locObj,details,
-      ot1x:calcA.ot1x,ot15x:calcA.ot15x,ot3x:calcA.ot3x,
-      otCustom:calcA.otCustom,customRate
+      ot1x:a1x,ot15x:a15x,ot3x:a3x,
+      otCustom:aCustom,customRate
     };
-    const calcB=calcOTHours('00:00',timeOut,'public_holiday');
     const entryB={
       id:uid(),
       date:nextDate,timeIn:'00:00',timeOut,dayType:'public_holiday',afterMidnight:true,
       location:locObj,
       details:details?details+' (continued past midnight)':'Continued past midnight',
-      ot1x:0,ot15x:0,ot3x:calcB.ot3x,
+      ot1x:0,ot15x:0,ot3x:nightOT,
       otCustom:0,customRate:null
     };
     if(otEditIndex===null)state.otEntries.push(entryA);else state.otEntries[otEditIndex]=entryA;
@@ -4045,7 +4066,7 @@ function renderOT(){
   if(!list)return;
   list.innerHTML='';
   document.getElementById('otEmptyState').style.display=state.otEntries.length?'none':'block';
-  const dayTypeLabel={normal:'Normal',weekly_holiday:'Weekly Holiday',public_holiday:'Public Holiday',custom:'Other'};
+  const dayTypeLabel={normal:'Normal',callback:'Callback',weekly_holiday:'Weekly Holiday',public_holiday:'Public Holiday',custom:'Other'};
   const hourlyRate=getOTHourlyRate();
   state.otEntries.forEach((e,i)=>{
     const div=document.createElement('div');
