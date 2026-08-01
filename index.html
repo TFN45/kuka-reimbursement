@@ -153,10 +153,6 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
 .cal-cell-muted{color:var(--ink-3);opacity:.32}
 .cal-daynum{font-size:.82rem;font-weight:600;color:var(--ink)}
 .cal-cell-muted .cal-daynum{color:var(--ink-3)}
-.cal-today .cal-daynum{
-  background:var(--kuka);color:#fff;border-radius:50%;
-  width:23px;height:23px;display:flex;align-items:center;justify-content:center;
-}
 .cal-dots{display:flex;gap:2px;height:5px}
 .cal-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
 .cal-dot-expense{background:var(--kuka)}
@@ -198,11 +194,12 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   margin-top:12px;margin-bottom:2px;
 }
 .holiday-year-label:first-child{margin-top:0}
-.workday-row{display:flex;gap:6px;flex-wrap:wrap}
+.workday-row{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
 .workday-btn{
-  flex:1;min-width:40px;font-family:inherit;font-size:.78rem;font-weight:700;
-  padding:10px 4px;border-radius:var(--r-sm);border:1.5px solid var(--line);
+  width:100%;font-family:inherit;font-size:.76rem;font-weight:700;
+  padding:10px 2px;border-radius:var(--r-sm);border:1.5px solid var(--line);
   background:var(--surface-2);color:var(--ink-3);cursor:pointer;text-align:center;
+  min-width:0;overflow:hidden;
 }
 .workday-btn.active{background:var(--kuka);border-color:var(--kuka);color:#fff}
 .cal-cell.cal-nonwork .cal-daynum{color:#D64545}
@@ -4295,12 +4292,14 @@ function saveOTEntry(){
     const a15x=take(whole.ot15x);
     const a3x=take(whole.ot3x);
     const aCustom=take(whole.otCustom);
+    const spansMonths=otCurrentMonthKey!=='_unspecified'&&monthKeyOf(nextDate.slice(0,7))!==otCurrentMonthKey;
     const proceed=confirm(
       `Check Out (${timeOut}) is earlier than Check In (${timeIn}) — this session crosses midnight.\n\n`+
       `Your OT form can't have one entry span two dates, so this will be split into two entries automatically:\n\n`+
       `• ${fmtDateFull(date)}: ${timeIn}–23:59 — ${remaining.toFixed(2)} OT hrs\n`+
-      `• ${fmtDateFull(nextDate)}: 00:00–${timeOut} — ${nightOT.toFixed(2)} hrs @ ${midnightRate}× (${isHolidayEntry?'holiday':'weekday'} after-midnight rate)\n\n`+
-      `Continue?`
+      `• ${fmtDateFull(nextDate)}: 00:00–${timeOut} — ${nightOT.toFixed(2)} hrs @ ${midnightRate}× (${isHolidayEntry?'holiday':'weekday'} after-midnight rate)\n`+
+      (spansMonths?`\nNote: the second entry falls in ${monthLabel(monthKeyOf(nextDate.slice(0,7)))||'the next month'}, so it will be saved under that month.\n`:'')+
+      `\nContinue?`
     );
     if(!proceed)return;
     const locObj=otSelectedLocation?{name:otSelectedLocation.name,province:otSelectedLocation.province}:null;
@@ -4328,7 +4327,18 @@ function saveOTEntry(){
       customRate:useStd3x?null:midnightRate
     };
     if(otEditIndex===null)state.otEntries.push(entryA);else state.otEntries[otEditIndex]=entryA;
-    state.otEntries.push(entryB);
+    // If the after-midnight half lands in the next calendar month, file it under
+    // that month instead of the one being edited — otherwise it would print on
+    // the wrong month's OT form and go missing from the next month's totals.
+    const entryBKey=monthKeyOf(nextDate.slice(0,7));
+    if(otCurrentMonthKey!=='_unspecified'&&entryBKey!==otCurrentMonthKey){
+      if(!state.otMonths[entryBKey])state.otMonths[entryBKey]=[];
+      state.otMonths[entryBKey].push(entryB);
+      state.otMonths[entryBKey].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+      noteMsg(`✓ After-midnight hours saved to ${monthLabel(entryBKey)||entryBKey}`);
+    }else{
+      state.otEntries.push(entryB);
+    }
     state.otEntries.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     persist();renderOT();
     closeOTSheet();
