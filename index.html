@@ -832,6 +832,9 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   table.ts-table th,table.ts-table td{border:1px solid #000;padding:3px 4px;vertical-align:middle;text-align:center}
   table.ts-table th{background:#FEF9E0;font-weight:600}
   table.ts-table td.ts-day{background:#FEF9E0;font-weight:600}
+  table.ts-table td.l{text-align:left}
+  table.ts-table tr.ts-holiday td{background:#FBDCDC}
+  table.ts-table tr.ts-holiday td.ts-day{background:#F7C6C6}
 }
 /* ===== Splash / boot screen ===== */
 .splash{
@@ -5395,7 +5398,9 @@ function buildTimesheetPrint(){
       const dateStr=year+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
       const e=byDate[dateStr];
       const lbl=TS_DAY_LABELS[weekday];
-      rows+=`<tr>
+      const remarkText=e?[e.details,e.location?`📍 ${otLocationDisplay(e.location)}`:''].filter(Boolean).join(' — '):'';
+      const isHoliday=!!holidayFor(dateStr);
+      rows+=`<tr${isHoliday?' class="ts-holiday"':''}>
         <td>${String(day).padStart(2,'0')}/${String(month).padStart(2,'0')}</td>
         <td class="ts-day">${lbl.th} (${lbl.en})</td>
         <td>${e?esc(e.timeIn):''}</td>
@@ -5403,22 +5408,26 @@ function buildTimesheetPrint(){
         <td>${e&&e.ot1x?e.ot1x.toFixed(2):''}</td>
         <td>${e&&e.ot15x?e.ot15x.toFixed(2):''}</td>
         <td>${e&&e.ot3x?e.ot3x.toFixed(2):''}</td>
+        <td></td>
+        <td class="l">${esc(remarkText)}</td>
       </tr>`;
     });
     tables+=`<table class="ts-table">
       <thead>
         <tr>
-          <th rowspan="2" style="width:11%">วันที่ (Date)</th>
-          <th rowspan="2" style="width:19%">วัน</th>
+          <th rowspan="2" style="width:8%">วันที่ (Date)</th>
+          <th rowspan="2" style="width:13%">วัน</th>
           <th colspan="2">ชั่วโมงทำงาน (Work hrs.)</th>
           <th colspan="3">จำนวนชั่วโมง O.T. (Overtime hrs.)</th>
+          <th rowspan="2" style="width:20%">หัวหน้างาน/ ผู้จัดการต้นสังกัด<br>รับทราบและอนุมัติ (Manager)</th>
+          <th rowspan="2" style="width:20%">หมายเหตุ (Remark)</th>
         </tr>
         <tr>
-          <th style="width:13%">เวลาเข้างาน (In)</th>
-          <th style="width:13%">เวลาออกงาน (Out)</th>
-          <th style="width:11%">O.T. 1 เท่า</th>
-          <th style="width:11%">O.T. 1.5 เท่า</th>
-          <th style="width:11%">O.T. 3 เท่า</th>
+          <th style="width:9%">เวลาเข้างาน (In)</th>
+          <th style="width:9%">เวลาออกงาน (Out)</th>
+          <th style="width:7%">O.T. 1 เท่า</th>
+          <th style="width:7%">O.T. 1.5 เท่า</th>
+          <th style="width:7%">O.T. 3 เท่า</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
