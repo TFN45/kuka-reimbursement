@@ -781,9 +781,14 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
 .ts-printpage{display:none}
 @page{size:A4 portrait;margin:15mm}
 @media print{
-  html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}
-  body{background:#fff;padding:0}
-  header,main,.totalbar,.ot-totalbar,.overlay,.viewer{display:none !important}
+  /* Force a white sheet regardless of the app's theme. Without this the dark
+     theme background paints the whole page (including the @page margin area),
+     which shows up as black borders around every page. */
+  html,body{background:#fff !important}
+  body{padding:0}
+  /* .splash is position:fixed/inset:0 with a dark background — it must be
+     excluded like the other full-viewport overlays or it covers the sheet. */
+  header,main,.totalbar,.ot-totalbar,.overlay,.viewer,.splash{display:none !important}
   .printpage{display:block;font-family:'Noto Sans Thai',Arial,sans-serif;color:#000;font-size:11pt}
   body.printing-ot .printpage{display:none !important}
   body.printing-ot .ot-printpage{display:block !important;font-family:'Noto Sans Thai',Arial,sans-serif;color:#000;font-size:10.5pt}
