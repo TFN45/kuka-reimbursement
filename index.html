@@ -328,6 +328,11 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
 .pair-builder input{flex:1;min-width:0}
 .pair-builder .province-wrap{flex:1;min-width:0}
 .pair-hint{font-size:.72rem;color:var(--ink-2);margin-top:6px;line-height:1.4}
+.abroad-check{
+  display:flex;align-items:center;gap:7px;font-size:.78rem;font-weight:500;
+  color:var(--ink-2);text-transform:none;letter-spacing:0;margin:6px 0 8px;cursor:pointer;
+}
+.abroad-check input{width:16px;height:16px;flex-shrink:0;accent-color:var(--kuka)}
 .province-wrap{position:relative}
 .province-list{
   position:absolute;top:calc(100% + 4px);left:0;right:0;
@@ -1248,6 +1253,7 @@ try{
     <div class="field"><label>Date <span class="required-mark">*</span></label><input id="fDate" type="date"></div>
     <div class="field">
       <label>Customer / Company + Province <span class="required-mark">*</span> <span class="manage-link" onclick="toggleManage('loc')" id="locManageLink">✎ Manage</span></label>
+      <label class="abroad-check"><input type="checkbox" id="expenseAbroadCheck" onchange="toggleAbroadMode('expense')"> 🌍 Working outside Thailand — let me type location freely</label>
       <div class="tag-row" id="locTags"></div>
       <div class="chip-row" id="locChips"></div>
       <div class="pair-builder">
@@ -1378,6 +1384,7 @@ try{
     <div class="field-note" style="margin:6px 0 0">Auto-calculated from your Check-In/Check-Out and Break settings — please verify this matches your company's OT policy.</div>
     <div class="field" style="margin-top:13px">
       <label>Customer / Site Location</label>
+      <label class="abroad-check"><input type="checkbox" id="otAbroadCheck" onchange="toggleAbroadMode('ot')"> 🌍 Working outside Thailand — let me type location freely</label>
       <div class="tag-row" id="otLocTag"></div>
       <div class="pair-builder">
         <div class="province-wrap" id="otCompanyWrap">
@@ -1406,6 +1413,7 @@ try{
     <div class="field"><label>Task Title <span class="required-mark">*</span></label><input id="taskTitle" placeholder="e.g. Replace conveyor guard, commission KR180"></div>
     <div class="field">
       <label>Customer / Site</label>
+      <label class="abroad-check"><input type="checkbox" id="taskAbroadCheck" onchange="toggleAbroadMode('task')"> 🌍 Working outside Thailand — let me type location freely</label>
       <div class="tag-row" id="taskLocTag"></div>
       <div class="pair-builder">
         <div class="province-wrap" id="taskCompanyWrap">
@@ -1446,6 +1454,7 @@ try{
     <div class="field"><label>Title <span class="required-mark">*</span></label><input id="noteTitle" placeholder="e.g. DENSO robot 3 encoder fault"></div>
     <div class="field">
       <label>Customer / Site <span style="font-weight:400;color:var(--ink-2);text-transform:none;letter-spacing:0;font-size:.78rem">(optional)</span></label>
+      <label class="abroad-check"><input type="checkbox" id="noteAbroadCheck" onchange="toggleAbroadMode('note')"> 🌍 Working outside Thailand — let me type location freely</label>
       <div class="tag-row" id="noteLocTag"></div>
       <div class="pair-builder">
         <div class="province-wrap" id="noteCompanyWrap">
@@ -1807,6 +1816,23 @@ function renderSavedSignature(){
 
 /* ---------- Thailand provinces (fixed, searchable dropdown) ---------- */
 const THAI_PROVINCES=['Amnat Charoen','Ang Thong','Bangkok','Bueng Kan','Buriram','Chachoengsao','Chai Nat','Chaiyaphum','Chanthaburi','Chiang Mai','Chiang Rai','Chonburi','Chumphon','Kalasin','Kamphaeng Phet','Kanchanaburi','Khon Kaen','Krabi','Lampang','Lamphun','Loei','Lopburi','Mae Hong Son','Maha Sarakham','Mukdahan','Nakhon Nayok','Nakhon Pathom','Nakhon Phanom','Nakhon Ratchasima','Nakhon Sawan','Nakhon Si Thammarat','Nan','Narathiwat','Nong Bua Lamphu','Nong Khai','Nonthaburi','Pathum Thani','Pattani','Phang Nga','Phatthalung','Phayao','Phetchabun','Phetchaburi','Phichit','Phitsanulok','Phra Nakhon Si Ayutthaya','Phrae','Phuket','Prachinburi','Prachuap Khiri Khan','Ranong','Ratchaburi','Rayong','Roi Et','Sa Kaeo','Sakon Nakhon','Samut Prakan','Samut Sakhon','Samut Songkhram','Saraburi','Satun','Sing Buri','Sisaket','Songkhla','Sukhothai','Suphan Buri','Surat Thani','Surin','Tak','Trang','Trat','Ubon Ratchathani','Udon Thani','Uthai Thani','Uttaradit','Yala','Yasothon'];
+// Deliberately plain in-memory state, never persisted — the "working abroad"
+// checkbox must always default to unchecked whenever a sheet is opened, per
+// the user's request, since they rarely work outside Thailand.
+let locAbroadState={expense:false,ot:false,task:false,note:false};
+const LOC_PROVINCE_INPUT_ID={expense:'fProvince',ot:'otProvinceInput',task:'taskProvinceInput',note:'noteProvinceInput'};
+function toggleAbroadMode(scope){
+  locAbroadState[scope]=document.getElementById(scope+'AbroadCheck').checked;
+  const el=document.getElementById(LOC_PROVINCE_INPUT_ID[scope]);
+  if(el)el.placeholder=locAbroadState[scope]?'Type city / region / country…':'Then search & tap its province…';
+}
+function resetAbroadMode(scope){
+  locAbroadState[scope]=false;
+  const cb=document.getElementById(scope+'AbroadCheck');
+  if(cb)cb.checked=false;
+  const el=document.getElementById(LOC_PROVINCE_INPUT_ID[scope]);
+  if(el)el.placeholder='Then search & tap its province…';
+}
 // Short codes for compact tag display (app-generated convenience labels, not an official standard — editable indirectly by choosing full province names in exports)
 const PROVINCE_ABBR={'Amnat Charoen':'ACH','Ang Thong':'ATH','Bangkok':'BKK','Bueng Kan':'BKA','Buriram':'BFV','Chachoengsao':'CHAC','Chai Nat':'CNA','Chaiyaphum':'CHAI','Chanthaburi':'CHAN','Chiang Mai':'CNX','Chiang Rai':'CEI','Chonburi':'CHON','Chumphon':'CJM','Kalasin':'KALA','Kamphaeng Phet':'KPH','Kanchanaburi':'KANC','Khon Kaen':'KKC','Krabi':'KBV','Lampang':'LPG','Lamphun':'LPN','Loei':'LOE','Lopburi':'LOPB','Mae Hong Son':'HGN','Maha Sarakham':'MSA','Mukdahan':'MUKD','Nakhon Nayok':'NNA','Nakhon Pathom':'NPA','Nakhon Phanom':'NPH','Nakhon Ratchasima':'NMA','Nakhon Sawan':'NSA','Nakhon Si Thammarat':'NST','Nan':'NNT','Narathiwat':'NAW','Nong Bua Lamphu':'NBL','Nong Khai':'NKH','Nonthaburi':'NONT','Pathum Thani':'PTH','Pattani':'PAN','Phang Nga':'PNG','Phatthalung':'PHAT','Phayao':'PHAY','Phetchabun':'PCB','Phetchaburi':'PBI','Phichit':'PHIC','Phitsanulok':'PHS','Phra Nakhon Si Ayutthaya':'PNSA','Phrae':'PRH','Phuket':'HKT','Prachinburi':'PRAC','Prachuap Khiri Khan':'PKK','Ranong':'UNN','Ratchaburi':'RATC','Rayong':'UTP','Roi Et':'ROI','Sa Kaeo':'SKA','Sakon Nakhon':'SNO','Samut Prakan':'SPR','Samut Sakhon':'SSA','Samut Songkhram':'SSO','Saraburi':'SARA','Satun':'SATU','Sing Buri':'SIB','Sisaket':'SISA','Songkhla':'HDY','Sukhothai':'SUKH','Suphan Buri':'SPB','Surat Thani':'URT','Surin':'SURI','Tak':'TAK','Trang':'TST','Trat':'TDX','Ubon Ratchathani':'UBP','Udon Thani':'UDN','Uthai Thani':'UTH','Uttaradit':'UTTA','Yala':'YALA','Yasothon':'YASO'};
 function autoAbbrev(name){
@@ -2574,6 +2600,7 @@ async function bulkAttachSubmit(){
 async function openSheet(i=null){
   editIndex=i;pendingReceipt=null;pendingRemoved=false;pendingReceiptRef=null;
   pendingExtraReceipts=[];pendingExtraRemovals=[];
+  resetAbroadMode('expense');
   document.getElementById('sheetTitle').textContent=i===null?'Add Expense':'Edit Expense';
   const e=i===null?{date:'',companies:[],desc:'',purpose:'',amount:''}:state.entries[i];
   document.getElementById('fDate').value=e.date||'';
@@ -2637,6 +2664,7 @@ function duplicateEntry(i){
   const src=state.entries[i];
   editIndex=null;pendingReceipt=null;pendingRemoved=false;pendingReceiptRef=null;
   existingExtraIds=[];pendingExtraReceipts=[];pendingExtraRemovals=[];
+  resetAbroadMode('expense');
   renderExtraReceiptGrid();
   document.getElementById('sheetTitle').textContent='Add Expense (Duplicated)';
   const todayIso=new Date().toISOString().slice(0,10);
@@ -2883,7 +2911,7 @@ async function saveEntry(){
   let leftoverProvince=document.getElementById('fProvince').value.trim();
   // If both boxes already hold a valid, exact company + province, finish pairing automatically
   // (covers the case where the user typed an exact match instead of tapping a suggestion)
-  const provinceMatch=THAI_PROVINCES.find(p=>p.toLowerCase()===leftoverProvince.toLowerCase());
+  const provinceMatch=locAbroadState.expense?(leftoverProvince||null):THAI_PROVINCES.find(p=>p.toLowerCase()===leftoverProvince.toLowerCase());
   if(leftoverOther&&provinceMatch){
     finalizeLocationPair(leftoverOther,provinceMatch);
     leftoverOther='';leftoverProvince='';
@@ -4319,6 +4347,7 @@ function updateTaskHolidayNotice(){
 }
 function openTaskSheet(i=null){
   taskEditIndex=i;
+  resetAbroadMode('task');
   document.getElementById('taskSheetTitle').textContent=i===null?'Add Task':'Edit Task';
   const t=i===null?{title:'',location:null,startDate:'',endDate:'',status:'not_started',details:''}:state.tasks[i];
   document.getElementById('taskTitle').value=t.title||'';
@@ -4350,7 +4379,7 @@ function saveTask(){
   const details=document.getElementById('taskDetails').value.trim();
   let leftoverCompany=document.getElementById('taskCompanyInput').value.trim();
   let leftoverProvince=document.getElementById('taskProvinceInput').value.trim();
-  const provinceMatch=THAI_PROVINCES.find(p=>p.toLowerCase()===leftoverProvince.toLowerCase());
+  const provinceMatch=locAbroadState.task?(leftoverProvince||null):THAI_PROVINCES.find(p=>p.toLowerCase()===leftoverProvince.toLowerCase());
   if(leftoverCompany&&provinceMatch){
     locPickerFinalize('task',leftoverCompany,provinceMatch);
     leftoverCompany='';leftoverProvince='';
@@ -4488,6 +4517,7 @@ document.getElementById('noteImageFile').addEventListener('change',async ev=>{
 });
 function openNoteSheet(i=null){
   noteEditIndex=i;
+  resetAbroadMode('note');
   document.getElementById('noteSheetTitle').textContent=i===null?'Add Note':'Edit Note';
   const n=i===null?{title:'',location:null,date:'',content:'',imageIds:[]}:state.notes[i];
   document.getElementById('noteTitle').value=n.title||'';
@@ -4509,7 +4539,7 @@ async function saveNote(){
   const content=document.getElementById('noteContent').value.trim();
   let leftoverCompany=document.getElementById('noteCompanyInput').value.trim();
   let leftoverProvince=document.getElementById('noteProvinceInput').value.trim();
-  const provinceMatch=THAI_PROVINCES.find(p=>p.toLowerCase()===leftoverProvince.toLowerCase());
+  const provinceMatch=locAbroadState.note?(leftoverProvince||null):THAI_PROVINCES.find(p=>p.toLowerCase()===leftoverProvince.toLowerCase());
   if(leftoverCompany&&provinceMatch){
     locPickerFinalize('note',leftoverCompany,provinceMatch);
     leftoverCompany='';leftoverProvince='';
@@ -4987,6 +5017,7 @@ document.getElementById('holidayNewName').addEventListener('keydown',ev=>{
 let otEditIndex=null;
 function openOTSheet(i=null){
   otEditIndex=i;
+  resetAbroadMode('ot');
   document.getElementById('otSheetTitle').textContent=i===null?'Add OT Entry':'Edit OT Entry';
   const isNew=i===null;
   const defaults={
@@ -5029,7 +5060,7 @@ function saveOTEntry(){
   const details=document.getElementById('otDetails').value.trim();
   let leftoverCompany=document.getElementById('otCompanyInput').value.trim();
   let leftoverProvince=document.getElementById('otProvinceInput').value.trim();
-  const provinceMatch=THAI_PROVINCES.find(p=>p.toLowerCase()===leftoverProvince.toLowerCase());
+  const provinceMatch=locAbroadState.ot?(leftoverProvince||null):THAI_PROVINCES.find(p=>p.toLowerCase()===leftoverProvince.toLowerCase());
   if(leftoverCompany&&provinceMatch){
     finalizeOTLocation(leftoverCompany,provinceMatch);
     leftoverCompany='';leftoverProvince='';
