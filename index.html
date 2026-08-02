@@ -778,6 +778,7 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
 /* ===== Print: formal English corporate layout ===== */
 .printpage{display:none}
 .ot-printpage{display:none}
+.ts-printpage{display:none}
 @page{size:A4 portrait;margin:15mm}
 @media print{
   body{background:#fff;padding:0}
@@ -785,6 +786,8 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   .printpage{display:block;font-family:'Noto Sans Thai',Arial,sans-serif;color:#000;font-size:11pt}
   body.printing-ot .printpage{display:none !important}
   body.printing-ot .ot-printpage{display:block !important;font-family:'Noto Sans Thai',Arial,sans-serif;color:#000;font-size:10.5pt}
+  body.printing-timesheet .printpage{display:none !important}
+  body.printing-timesheet .ts-printpage{display:block !important;font-family:'Noto Sans Thai',Arial,sans-serif;color:#000;font-size:10.5pt}
   .pp-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:12px}
   .pp-head .pp-org{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:10pt;letter-spacing:.08em}
   .pp-title{font-weight:700;font-size:13.5pt}
@@ -821,6 +824,14 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   table.otp-table th{background:#eee;font-weight:600}
   table.otp-table tr{page-break-inside:avoid;break-inside:avoid}
   table.otp-table td.l{text-align:left}
+
+  /* --- Timesheet form (weekly blocks, matches company template) --- */
+  .ts-title{text-align:center;font-weight:700;font-size:13pt;margin-bottom:10px}
+  table.ts-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:8.5pt;page-break-inside:avoid;break-inside:avoid}
+  table.ts-table+table.ts-table{margin-top:14px}
+  table.ts-table th,table.ts-table td{border:1px solid #000;padding:3px 4px;vertical-align:middle;text-align:center}
+  table.ts-table th{background:#FEF9E0;font-weight:600}
+  table.ts-table td.ts-day{background:#FEF9E0;font-weight:600}
 }
 /* ===== Splash / boot screen ===== */
 .splash{
@@ -982,6 +993,8 @@ try{
     <div class="section-label">Submit for Approval</div>
     <button class="btn btn-primary btn-sm" style="width:100%" onclick="sendOTApprovalEmail()">✉️ Send for Approval</button>
     <div class="attach-status" style="margin-top:6px">Opens your email app with the message ready — export the PDF first, then attach it manually before sending.</div>
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" onclick="exportTimesheetPDF()">🗓 Export Timesheet Form</button>
+    <div class="attach-status" style="margin-top:6px">A weekly-grid attendance sheet for this same month — every day of the month, not just OT days.</div>
   </div>
 
   <div id="tasksView" style="display:none">
@@ -1503,6 +1516,7 @@ try{
 <!-- Print layout -->
 <div class="printpage" id="printPage"></div>
 <div class="ot-printpage" id="otPrintPage"></div>
+<div class="ts-printpage" id="timesheetPrintPage"></div>
 
 <script>
 /* =========================================================
@@ -5334,6 +5348,124 @@ function buildOTPrint(){
       </div>
     </div>`;
 }
+/* =========================================================
+   Timesheet Form — a second export template sharing the same
+   OT entry data as the approval form above, but laid out as
+   weekly grid blocks (every day of the month, not just OT
+   days) to match the uploaded company template.
+========================================================= */
+const TS_DAY_LABELS=[
+  {th:'วันอาทิตย์',en:'Sun'},{th:'วันจันทร์',en:'Mon'},{th:'วันอังคาร',en:'Tue'},
+  {th:'วันพุธ',en:'Wed'},{th:'วันพฤหัสบดี',en:'Thu'},{th:'วันศุกร์',en:'Fri'},{th:'วันเสาร์',en:'Sat'}
+];
+function buildTimesheetWeekBlocks(year,month){
+  // Groups the month's days into Monday-start week blocks, clipped to only
+  // the days that actually fall inside this month — the first and last
+  // blocks are naturally partial when the month doesn't start/end on a
+  // Mon/Sun, matching what was agreed rather than padding with adjacent
+  // months' dates.
+  const daysInMonth=new Date(year,month,0).getDate();
+  const blocks=[];
+  let current=null;
+  for(let d=1;d<=daysInMonth;d++){
+    const weekday=new Date(year,month-1,d).getDay();
+    if(weekday===1||current===null){current=[];blocks.push(current);}
+    current.push({day:d,weekday});
+  }
+  return blocks;
+}
+function buildTimesheetPrint(){
+  const target=document.getElementById('timesheetPrintPage');
+  if(!target)return;
+  const mParts=(state.emp.otMonth||'').split('-');
+  if(mParts.length!==2){
+    target.innerHTML='<div class="ts-title">Please select a month on the OT page first.</div>';
+    return;
+  }
+  const year=parseInt(mParts[0]),month=parseInt(mParts[1]);
+  const blocks=buildTimesheetWeekBlocks(year,month);
+  // Unfiltered on purpose — a normal day with 0 OT should still show its
+  // check-in/out here, unlike the OT Approval Form above which hides those.
+  const byDate={};
+  state.otEntries.forEach(e=>{if(e.date)byDate[e.date]=e;});
+  let tables='';
+  blocks.forEach(block=>{
+    let rows='';
+    block.forEach(({day,weekday})=>{
+      const dateStr=year+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+      const e=byDate[dateStr];
+      const lbl=TS_DAY_LABELS[weekday];
+      rows+=`<tr>
+        <td>${String(day).padStart(2,'0')}/${String(month).padStart(2,'0')}</td>
+        <td class="ts-day">${lbl.th} (${lbl.en})</td>
+        <td>${e?esc(e.timeIn):''}</td>
+        <td>${e?esc(e.timeOut):''}</td>
+        <td>${e&&e.ot1x?e.ot1x.toFixed(2):''}</td>
+        <td>${e&&e.ot15x?e.ot15x.toFixed(2):''}</td>
+        <td>${e&&e.ot3x?e.ot3x.toFixed(2):''}</td>
+      </tr>`;
+    });
+    tables+=`<table class="ts-table">
+      <thead>
+        <tr>
+          <th rowspan="2" style="width:11%">วันที่ (Date)</th>
+          <th rowspan="2" style="width:19%">วัน</th>
+          <th colspan="2">ชั่วโมงทำงาน (Work hrs.)</th>
+          <th colspan="3">จำนวนชั่วโมง O.T. (Overtime hrs.)</th>
+        </tr>
+        <tr>
+          <th style="width:13%">เวลาเข้างาน (In)</th>
+          <th style="width:13%">เวลาออกงาน (Out)</th>
+          <th style="width:11%">O.T. 1 เท่า</th>
+          <th style="width:11%">O.T. 1.5 เท่า</th>
+          <th style="width:11%">O.T. 3 เท่า</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  });
+  const today=new Date();
+  const printed=String(today.getDate()).padStart(2,'0')+'/'+String(today.getMonth()+1).padStart(2,'0')+'/'+today.getFullYear();
+  const thMonths=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  const monthName=thMonths[month-1]||'';
+  const yearBE=year+543;
+  target.innerHTML=`
+    <div class="ts-title">ใบลงเวลาทำงาน (Timesheet)</div>
+    <div class="pp-line" style="justify-content:flex-end"><b>ประจำเดือน Month</b><span style="max-width:22%;flex:none;width:22%">${esc(monthName)}</span><b style="margin-left:12px">ปี year</b><span style="max-width:12%;flex:none;width:12%">${yearBE}</span></div>
+    <div class="pp-line"><b>ชื่อ-นามสกุลพนักงาน/Name</b><span>${esc(state.emp.name)}</span></div>
+    <div class="pp-line"><b>รหัสพนักงาน/Employee Code</b><span style="max-width:30%">${esc(state.emp.id)}</span><b style="margin-left:12px">ตำแหน่ง/Position</b><span>${esc(state.emp.position)}</span></div>
+    <div class="pp-line"><b>สถานที่ทำงาน Work location</b><span>${esc(state.emp.workLocation)}</span></div>
+    <div class="pp-line"><b>ชื่อหัวหน้างาน/ผู้จัดการต้นสังกัด (Manager)</b><span>${esc(state.emp.mgrName)}</span></div>
+    <div style="height:6px"></div>
+    ${tables}
+    <div class="pp-cert-block">
+      <div class="pp-sign">
+        <div>
+          ${state.emp.signature?`<div class="sig-img-wrap"><img class="sig-img" src="${state.emp.signature}" alt="Signature"></div>`:'<div class="sig-line"></div>'}
+          <div class="sig-role">${esc(state.emp.name)||'Employee'}</div>
+          <div class="sig-date">จัดเตรียมโดย / Prepared by (Employee)</div>
+          <div class="sig-date">Date: ${state.emp.signature?printed:'............./............./..............'}</div>
+        </div>
+        <div>
+          <div class="sig-line"></div>
+          <div class="sig-role">${esc(state.emp.mgrName)||'Manager'}</div>
+          <div class="sig-date">อนุมัติโดย / Approved by (Manager)</div>
+          <div class="sig-date">Date: ............./............./..............</div>
+        </div>
+      </div>
+    </div>`;
+}
+function exportTimesheetPDF(){
+  buildTimesheetPrint();
+  document.body.classList.add('printing-timesheet');
+  const period=monthLabel(state.emp.otMonth)||'';
+  document.title='Timesheet Form (KUKA OS)'+(period?' — '+period:'');
+  window.print();
+  setTimeout(()=>{
+    document.body.classList.remove('printing-timesheet');
+    document.title=DEFAULT_TITLE;
+  },1000);
+}
 /* ---------- auto-fit header text: shrinks font-size so long values stay on one clean line instead of wrapping ---------- */
 function autoFitPrintLines(containerId){
   const container=document.getElementById(containerId);
@@ -5356,6 +5488,7 @@ function autoFitPrintLines(containerId){
 window.addEventListener('beforeprint',()=>{
   autoFitPrintLines('printPage');
   autoFitPrintLines('otPrintPage');
+  autoFitPrintLines('timesheetPrintPage');
 });
 const DEFAULT_TITLE=document.title;
 function exportPDF(){
