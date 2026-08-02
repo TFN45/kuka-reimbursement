@@ -93,6 +93,12 @@ header{
 }
 .brand h1{font-size:1.02rem;font-weight:600;letter-spacing:-.01em}
 header p{font-size:.75rem;color:#9BA1A8}
+.header-clock{
+  display:flex;align-items:center;height:38px;flex-shrink:0;
+  font-family:'IBM Plex Mono',monospace;font-size:.78rem;font-weight:600;
+  color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.12);
+  border-radius:var(--r-sm);padding:0 11px;white-space:nowrap;
+}
 
 /* ===== Sections ===== */
 main{padding:14px 14px 0;max-width:560px;margin:0 auto}
@@ -228,6 +234,15 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   margin-top:12px;margin-bottom:2px;
 }
 .holiday-year-label:first-child{margin-top:0}
+.snapshot-row{
+  display:flex;align-items:center;gap:10px;padding:9px 0;
+  border-bottom:1px solid var(--line);font-size:.85rem;
+}
+.snapshot-row:last-child{border-bottom:none}
+.snapshot-row .s-info{flex:1;min-width:0}
+.snapshot-row .s-date{font-weight:600;font-size:.85rem;color:var(--ink)}
+.snapshot-row .s-meta{font-size:.72rem;color:var(--ink-2);margin-top:1px}
+.snapshot-row .s-actions{display:flex;gap:4px;flex-shrink:0}
 .workday-row{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
 .workday-btn{
   width:100%;font-family:inherit;font-size:.76rem;font-weight:700;
@@ -578,7 +593,7 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
 
 /* ===== Storage banner ===== */
 .storage-note{
-  font-size:.78rem;border-radius:var(--r-sm);padding:11px 13px;margin-top:10px;display:none;
+  font-size:.78rem;border-radius:var(--r-sm);padding:11px 13px;margin-bottom:12px;display:none;
   line-height:1.45;
 }
 .storage-note.warn{display:block;color:#7A4A00;background:#FFF3E0;border:1px solid #FFDCA8}
@@ -879,6 +894,7 @@ try{
     <span class="brand-mark">KUKA OS</span>
     <h1 id="headerTitle">Overview</h1>
     <div class="header-nav-wrap" id="headerNavWrap">
+      <span class="header-clock" id="headerClock"></span>
       <button class="header-nav-btn" onclick="openNavMenu()" aria-label="Menu">☰</button>
     </div>
   </div>
@@ -886,7 +902,6 @@ try{
 </header>
 
 <main>
-  <div class="storage-note" id="storageNote"></div>
 
   <div id="homeView" style="display:none">
     <div class="month-switcher">
@@ -1137,8 +1152,31 @@ try{
 
     <div class="section-label">Storage Usage</div>
     <div class="card">
+      <div class="storage-note" id="storageNote"></div>
       <div class="storage-usage-text" id="storageUsageText">Checking…</div>
       <div class="storage-usage-track"><div class="storage-usage-fill" id="storageUsageFill" style="width:0%"></div></div>
+    </div>
+
+    <div class="section-label">Auto Backup</div>
+    <div class="card">
+      <div class="switch-row">
+        <div>
+          <div class="switch-label">Enable Auto Backup</div>
+          <div class="switch-sub">Saves a snapshot of your data (no photos) on this device, checked once when the app opens</div>
+        </div>
+        <button type="button" class="switch" id="autoBackupSwitch" onclick="toggleAutoBackup()" aria-label="Toggle auto backup">
+          <span class="switch-knob"></span>
+        </button>
+      </div>
+      <div class="row2" style="margin-top:14px">
+        <div class="field"><label>Every ___ Days</label><input id="autoBackupIntervalDays" type="number" inputmode="decimal" step="1" min="1" placeholder="7"></div>
+        <div class="field"><label>Keep ___ Versions</label><input id="autoBackupKeepCount" type="number" inputmode="decimal" step="1" min="1" placeholder="5"></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="width:100%" onclick="manualAutoBackupNow()">📸 Back Up Now</button>
+      <div class="attach-status" style="margin-top:8px;text-align:left" id="autoBackupLastText"></div>
+      <div id="snapshotList" style="margin-top:10px"></div>
+      <div class="attach-status" id="snapshotEmpty" style="margin-top:8px">No snapshots yet.</div>
+      <div class="field-note" style="margin:10px 0 0">Snapshots live in this device's storage only — if the phone is lost or the app's data is cleared, snapshots go with it. Still export a real backup file below periodically and save it somewhere else (Google Drive, email) for real disaster protection.</div>
     </div>
 
     <div class="section-label">Data Backup</div>
@@ -1150,6 +1188,7 @@ try{
         <input type="file" id="importFile" accept=".json,application/json" style="display:none">
       </div>
       <div class="attach-status" style="margin-top:8px;text-align:left">Restoring only adds months that don't already exist here — it never overwrites or deletes existing data.</div>
+      <div class="attach-status" style="margin-top:8px;text-align:left" id="lastExportText"></div>
       <button class="btn btn-ghost btn-sm" style="margin-top:12px;width:100%" onclick="exportCSV()">⬇ Export CSV (Selected Year)</button>
       <div class="attach-status" style="margin-top:8px;text-align:left">Plain data for spreadsheets or other systems (e.g. Salesforce) — one row per item, no images.</div>
     </div>
@@ -1484,14 +1523,23 @@ let MODE='memory';
 function openIDB(){
   return new Promise((resolve,reject)=>{
     if(!window.indexedDB)return reject(new Error('no idb'));
-    const rq=indexedDB.open('kuka-reimb',1);
+    const rq=indexedDB.open('kuka-reimb',2);
+    let settled=false;
+    const finish=(fn,arg)=>{if(settled)return;settled=true;fn(arg);};
+    // A version upgrade blocks while another tab still holds the old
+    // connection. That fires neither onsuccess nor onerror, so without
+    // these guards the promise would hang forever and the app would be
+    // stuck on the splash screen.
+    rq.onblocked=()=>finish(reject,new Error('idb blocked — another tab has the app open'));
+    const timer=setTimeout(()=>finish(reject,new Error('idb open timed out')),8000);
     rq.onupgradeneeded=()=>{
       const d=rq.result;
       if(!d.objectStoreNames.contains('kv'))d.createObjectStore('kv');
       if(!d.objectStoreNames.contains('receipts'))d.createObjectStore('receipts');
+      if(!d.objectStoreNames.contains('backups'))d.createObjectStore('backups');
     };
-    rq.onsuccess=()=>resolve(rq.result);
-    rq.onerror=()=>reject(rq.error);
+    rq.onsuccess=()=>{clearTimeout(timer);finish(resolve,rq.result);};
+    rq.onerror=()=>{clearTimeout(timer);finish(reject,rq.error);};
   });
 }
 function idbReq(storeName,mode,fn){
@@ -1505,6 +1553,7 @@ function idbReq(storeName,mode,fn){
 const idbGet=(s,k)=>idbReq(s,'readonly',o=>o.get(k));
 const idbSet=(s,k,v)=>idbReq(s,'readwrite',o=>o.put(v,k));
 const idbDel=(s,k)=>idbReq(s,'readwrite',o=>o.delete(k));
+const idbGetAllKeys=(s)=>idbReq(s,'readonly',o=>o.getAllKeys());
 
 const kv={
   async get(k){
@@ -1959,13 +2008,24 @@ async function stepMonth(delta){
 async function init(){
   const splashStart=Date.now();
   startSplashMessages();
+  let idbBlocked=false;
   try{idb=await openIDB();
     await idbSet('kv','__t','1');await idbDel('kv','__t');
     MODE='idb';
   }catch(e){
+    const msg=String(e&&e.message||'');
+    // A blocked/timed-out upgrade means the data IS there, just temporarily
+    // unreachable. Falling back silently would show an empty app and risk the
+    // user re-entering data into a different store — so flag it instead.
+    if(msg.includes('blocked')||msg.includes('timed out'))idbBlocked=true;
     if(hasClaudeStorage)MODE='claude';
     else if(hasLocalStorage)MODE='local';
     else MODE='memory';
+  }
+  if(idbBlocked){
+    hideSplash();
+    alert('The app couldn\'t open its database because another copy is still open.\n\nPlease close any other tabs or windows running KUKA OS, then reload this page.\n\nYour data is safe — it just can\'t be loaded while another copy holds it open.');
+    return;
   }
   if(navigator.storage&&navigator.storage.persist){
     try{await navigator.storage.persist();}catch(e){}
@@ -1986,6 +2046,7 @@ async function init(){
   renderSavedSignature();
   await initThemeFromStorage();
   applyOCRSwitchUI();
+  checkAutoBackupDue();
   handleShortcutAction();
   const minDisplay=1500;
   const elapsed=Date.now()-splashStart;
@@ -2030,7 +2091,7 @@ async function load(){
   try{
     const pv=await kv.get(PKEY);
     if(pv){const p=JSON.parse(pv);
-      ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes','otBaseSalary','otMidnightWeekday','otMidnightHoliday','workDays','ocrEnabled'].forEach(k=>{if(!state.emp[k]&&p[k])state.emp[k]=p[k];});
+      ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes','otBaseSalary','otMidnightWeekday','otMidnightHoliday','workDays','ocrEnabled','autoBackupEnabled','autoBackupIntervalDays','autoBackupKeepCount','lastAutoBackupAt','lastManualExportAt'].forEach(k=>{if(!state.emp[k]&&p[k])state.emp[k]=p[k];});
       if(!state.emp.descPresets&&Array.isArray(p.descPresets))state.emp.descPresets=p.descPresets;
       if(!state.emp.locPresets&&Array.isArray(p.locPresets))state.emp.locPresets=p.locPresets;
     }
@@ -2070,12 +2131,17 @@ async function load(){
   document.getElementById('mgrEmail').value=state.emp.mgrEmail||'';
   document.getElementById('empMonth').value=state.emp.month||'';
   document.getElementById('otMonthInput').value=state.emp.otMonth||'';
+  document.getElementById('autoBackupIntervalDays').value=state.emp.autoBackupIntervalDays||7;
+  document.getElementById('autoBackupKeepCount').value=state.emp.autoBackupKeepCount||5;
+  applyAutoBackupSwitchUI();
   render();
   renderOT();
   renderTasks();
   renderNotes();
   renderHolidays();
   renderWorkDayRow();
+  renderLastExportText();
+  renderBackupSnapshotList();
   setView('home');
 }
 function wrapReceipt(v){
@@ -2100,7 +2166,7 @@ let profTimer=null;
 function persistProfile(){
   clearTimeout(profTimer);
   profTimer=setTimeout(()=>{
-    kv.set(PKEY,JSON.stringify({name:state.emp.name,id:state.emp.id,position:state.emp.position,workLocation:state.emp.workLocation,mgrName:state.emp.mgrName,mgrPosition:state.emp.mgrPosition,mgrEmail:state.emp.mgrEmail,descPresets:state.emp.descPresets,locPresets:state.emp.locPresets,signature:state.emp.signature,mileageRate:state.emp.mileageRate,otStdCheckIn:state.emp.otStdCheckIn,otStdCheckOut:state.emp.otStdCheckOut,otBreakMinutes:state.emp.otBreakMinutes,otBaseSalary:state.emp.otBaseSalary,otMidnightWeekday:state.emp.otMidnightWeekday,otMidnightHoliday:state.emp.otMidnightHoliday,workDays:state.emp.workDays,ocrEnabled:state.emp.ocrEnabled})).catch(()=>{});
+    kv.set(PKEY,JSON.stringify({name:state.emp.name,id:state.emp.id,position:state.emp.position,workLocation:state.emp.workLocation,mgrName:state.emp.mgrName,mgrPosition:state.emp.mgrPosition,mgrEmail:state.emp.mgrEmail,descPresets:state.emp.descPresets,locPresets:state.emp.locPresets,signature:state.emp.signature,mileageRate:state.emp.mileageRate,otStdCheckIn:state.emp.otStdCheckIn,otStdCheckOut:state.emp.otStdCheckOut,otBreakMinutes:state.emp.otBreakMinutes,otBaseSalary:state.emp.otBaseSalary,otMidnightWeekday:state.emp.otMidnightWeekday,otMidnightHoliday:state.emp.otMidnightHoliday,workDays:state.emp.workDays,ocrEnabled:state.emp.ocrEnabled,autoBackupEnabled:state.emp.autoBackupEnabled,autoBackupIntervalDays:state.emp.autoBackupIntervalDays,autoBackupKeepCount:state.emp.autoBackupKeepCount,lastAutoBackupAt:state.emp.lastAutoBackupAt,lastManualExportAt:state.emp.lastManualExportAt})).catch(()=>{});
   },600);
 }
 ['empName','empId','empPosition','workLocation','mgrName','mgrPosition','mgrEmail'].forEach(id=>{
@@ -2963,6 +3029,258 @@ function populateBackupYearOptions(){
   }
   if(Array.from(sel.options).some(o=>o.value===prevVal))sel.value=prevVal;
 }
+/* =========================================================
+   Backup integrity — checksums + independent segments.
+   Splitting the backup into independent pieces (one per month,
+   plus one each for tasks/notes/holidays/profile) means a single
+   corrupted segment can be skipped on restore without losing
+   everything else in the file/snapshot.
+========================================================= */
+function simpleChecksum(str){
+  // Fast non-cryptographic hash (FNV-1a) — purely for corruption
+  // detection, not security.
+  let hash=0x811c9dc5;
+  for(let i=0;i<str.length;i++){
+    hash^=str.charCodeAt(i);
+    hash=Math.imul(hash,0x01000193);
+  }
+  return(hash>>>0).toString(16);
+}
+function makeSegment(data){
+  const json=JSON.stringify(data);
+  return{data,checksum:simpleChecksum(json)};
+}
+function verifySegment(seg){
+  if(!seg||typeof seg!=='object'||!('data'in seg))return false;
+  return simpleChecksum(JSON.stringify(seg.data))===seg.checksum;
+}
+function buildBackupSegments(){
+  // Structured data only — deliberately excludes receipt/note photo
+  // blobs to keep auto-snapshots small and fast; images stay protected
+  // in their own store, untouched by snapshot rotation. The manual
+  // "Back Up Data" file export still includes photos separately.
+  const segments={};
+  segments['emp']=makeSegment(state.emp);
+  Object.keys(state.months).forEach(k=>{
+    if(state.months[k]&&state.months[k].length)segments['month:'+k]=makeSegment(state.months[k]);
+  });
+  Object.keys(state.otMonths).forEach(k=>{
+    if(state.otMonths[k]&&state.otMonths[k].length)segments['otmonth:'+k]=makeSegment(state.otMonths[k]);
+  });
+  if(state.tasks.length)segments['tasks']=makeSegment(state.tasks);
+  if(state.notes.length)segments['notes']=makeSegment(state.notes);
+  if(state.holidays.length)segments['holidays']=makeSegment(state.holidays);
+  return segments;
+}
+
+async function createAutoBackupSnapshot(manual){
+  if(MODE!=='idb')return false; // snapshot store needs IndexedDB
+  try{
+    const hasRealData=Object.values(state.months).some(a=>a&&a.length)
+      ||Object.values(state.otMonths).some(a=>a&&a.length)
+      ||state.tasks.length||state.notes.length||state.holidays.length;
+    if(!hasRealData)return false; // nothing worth snapshotting yet
+    const segments=buildBackupSegments();
+    const snapshot={
+      createdAt:new Date().toISOString(),
+      manual:!!manual,
+      segments
+    };
+    // Date.now() alone could collide if two snapshots land in the same
+    // millisecond; the suffix keeps keys unique without breaking sort order.
+    const key='snap-'+Date.now()+'-'+Math.random().toString(36).slice(2,6);
+    await idbSet('backups',key,snapshot);
+    state.emp.lastAutoBackupAt=snapshot.createdAt;
+    persistProfile();
+    await pruneOldBackups();
+    return true;
+  }catch(e){
+    console.error('Auto backup snapshot failed',e);
+    return false;
+  }
+}
+async function pruneOldBackups(){
+  if(MODE!=='idb')return;
+  const keep=Math.max(1,Number(state.emp.autoBackupKeepCount)||5);
+  try{
+    const keys=(await idbGetAllKeys('backups')).filter(k=>k.startsWith('snap-')).sort();
+    const excess=keys.length-keep;
+    for(let i=0;i<excess;i++)await idbDel('backups',keys[i]);
+  }catch(e){}
+}
+async function checkAutoBackupDue(){
+  if(MODE!=='idb')return;
+  if(!state.emp.autoBackupEnabled)return;
+  const intervalDays=Math.max(1,Number(state.emp.autoBackupIntervalDays)||7);
+  const last=state.emp.lastAutoBackupAt?new Date(state.emp.lastAutoBackupAt):null;
+  const dueMs=intervalDays*24*60*60*1000;
+  if(!last||(Date.now()-last.getTime())>=dueMs){
+    await createAutoBackupSnapshot(false);
+    renderBackupSnapshotList();
+  }
+}
+
+async function restoreFromSnapshot(key){
+  if(MODE!=='idb')return;
+  const snapshot=await idbGet('backups',key).catch(()=>null);
+  if(!snapshot){alert('This backup snapshot could not be found — it may have been removed already.');return;}
+  const segNames=Object.keys(snapshot.segments||{});
+  if(segNames.length===0){alert('This snapshot has no data in it.');return;}
+  const valid=[],corrupted=[];
+  segNames.forEach(name=>{
+    if(verifySegment(snapshot.segments[name]))valid.push(name);
+    else corrupted.push(name);
+  });
+  if(valid.length===0){
+    alert(`This snapshot appears to be fully corrupted (${corrupted.length} segment(s) failed the integrity check) — nothing could be restored from it. Try an older snapshot instead.`);
+    return;
+  }
+  let addedMonths=0,addedOT=0,addedTasks=0,addedNotes=0,addedHolidays=0,profileFilled=false;
+  for(const name of valid){
+    const data=snapshot.segments[name].data;
+    if(name==='emp'){
+      // Skip backup bookkeeping fields — restoring a stale lastAutoBackupAt
+      // would mislead the scheduler about when the next snapshot is due.
+      const skip=['lastAutoBackupAt','lastManualExportAt'];
+      Object.keys(data).forEach(k=>{
+        if(skip.includes(k))return;
+        if(!state.emp[k]&&data[k]!==undefined&&data[k]!==''){state.emp[k]=data[k];profileFilled=true;}
+      });
+    }else if(name.startsWith('month:')){
+      const mk=name.slice(6);
+      if(!state.months[mk]||state.months[mk].length===0){state.months[mk]=data;addedMonths++;}
+    }else if(name.startsWith('otmonth:')){
+      const mk=name.slice(8);
+      if(!state.otMonths[mk]||state.otMonths[mk].length===0){state.otMonths[mk]=data;addedOT++;}
+    }else if(name==='tasks'){
+      const existing=new Set(state.tasks.map(t=>t.id));
+      data.forEach(t=>{if(t.id&&!existing.has(t.id)){state.tasks.push(t);addedTasks++;}});
+    }else if(name==='notes'){
+      const existing=new Set(state.notes.map(n=>n.id));
+      data.forEach(n=>{if(n.id&&!existing.has(n.id)){state.notes.push(n);addedNotes++;}});
+    }else if(name==='holidays'){
+      const existing=new Set(state.holidays.map(h=>h.date));
+      data.forEach(h=>{if(h.date&&!existing.has(h.date)){state.holidays.push(h);addedHolidays++;}});
+    }
+  }
+  switchMonth(state.emp&&state.emp.month);
+  switchOTMonth(state.emp&&state.emp.otMonth);
+  persist();persistProfile();
+  // Mirror the same UI refresh the file-restore path does — a restored
+  // profile segment can change any of these.
+  document.getElementById('empName').value=state.emp.name||'';
+  document.getElementById('empId').value=state.emp.id||'';
+  document.getElementById('empPosition').value=state.emp.position||'';
+  document.getElementById('workLocation').value=state.emp.workLocation||'';
+  document.getElementById('mgrName').value=state.emp.mgrName||'';
+  document.getElementById('mgrPosition').value=state.emp.mgrPosition||'';
+  document.getElementById('mgrEmail').value=state.emp.mgrEmail||'';
+  document.getElementById('otStdCheckIn').value=state.emp.otStdCheckIn||'09:00';
+  document.getElementById('otStdCheckOut').value=state.emp.otStdCheckOut||'18:00';
+  document.getElementById('otBreakMinutes').value=state.emp.otBreakMinutes!==undefined?state.emp.otBreakMinutes:60;
+  document.getElementById('otBaseSalary').value=state.emp.otBaseSalary||'';
+  document.getElementById('otMidnightWeekday').value=state.emp.otMidnightWeekday!==undefined?state.emp.otMidnightWeekday:3;
+  document.getElementById('otMidnightHoliday').value=state.emp.otMidnightHoliday!==undefined?state.emp.otMidnightHoliday:3;
+  render();renderOT();renderTasks();renderNotes();renderHolidays();renderWorkDayRow();
+  renderSavedSignature();applyOCRSwitchUI();applyAutoBackupSwitchUI();
+  const summary=`Restored from snapshot (${fmtDateFull(snapshot.createdAt.slice(0,10))}):\n`+
+    `✓ ${addedMonths} expense month(s), ${addedOT} OT month(s), ${addedTasks} task(s), ${addedNotes} note(s), ${addedHolidays} holiday(s)`+
+    (profileFilled?', profile fields':'')+
+    (corrupted.length?`\n\n⚠ ${corrupted.length} segment(s) failed the integrity check and were skipped: ${corrupted.join(', ')}`:'');
+  alert(summary);
+  noteMsg('✓ Snapshot restored');
+}
+async function deleteSnapshot(key){
+  if(!confirm('Delete this backup snapshot? This cannot be undone.'))return;
+  await idbDel('backups',key);
+  renderBackupSnapshotList();
+}
+function applyAutoBackupSwitchUI(){
+  const sw=document.getElementById('autoBackupSwitch');
+  if(sw)sw.classList.toggle('on',!!state.emp.autoBackupEnabled);
+}
+function toggleAutoBackup(){
+  state.emp.autoBackupEnabled=!state.emp.autoBackupEnabled;
+  persist();persistProfile();
+  applyAutoBackupSwitchUI();
+  if(state.emp.autoBackupEnabled)checkAutoBackupDue();
+}
+async function manualAutoBackupNow(){
+  if(MODE!=='idb'){
+    alert('Auto Backup snapshots need IndexedDB support, which this browser doesn\'t have. Use "Back Up Year" below instead to export a real file.');
+    return;
+  }
+  const ok=await createAutoBackupSnapshot(true);
+  if(ok){renderBackupSnapshotList();noteMsg('✓ Snapshot saved');}
+  else alert('Could not save a snapshot — there may be nothing to back up yet, or storage could be full.');
+}
+function renderAutoBackupLastText(){
+  const el=document.getElementById('autoBackupLastText');
+  if(!el)return;
+  if(!state.emp.lastAutoBackupAt){el.textContent='No snapshot has been saved yet.';return;}
+  const d=new Date(state.emp.lastAutoBackupAt);
+  el.textContent='Last snapshot: '+fmtDateFull(state.emp.lastAutoBackupAt.slice(0,10))+' at '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function renderLastExportText(){
+  const el=document.getElementById('lastExportText');
+  if(!el)return;
+  if(!state.emp.lastManualExportAt){
+    el.innerHTML='⚠️ You haven\'t exported a real backup file yet — do this periodically and save it somewhere off this device.';
+    return;
+  }
+  const days=Math.floor((Date.now()-new Date(state.emp.lastManualExportAt).getTime())/(24*60*60*1000));
+  if(days>=30){
+    el.innerHTML=`⚠️ Last real backup file was ${days} days ago — consider exporting one and saving it somewhere off this device.`;
+  }else{
+    el.textContent='Last real backup file: '+fmtDateFull(state.emp.lastManualExportAt.slice(0,10));
+  }
+}
+async function renderBackupSnapshotList(){
+  const wrap=document.getElementById('snapshotList');
+  const empty=document.getElementById('snapshotEmpty');
+  if(!wrap)return;
+  renderAutoBackupLastText();
+  if(MODE!=='idb'){
+    wrap.innerHTML='';
+    if(empty){empty.textContent='Snapshots need IndexedDB support, which this browser doesn\'t have.';empty.style.display='block';}
+    return;
+  }
+  let keys=[];
+  try{keys=(await idbGetAllKeys('backups')).filter(k=>k.startsWith('snap-')).sort().reverse();}catch(e){}
+  if(keys.length===0){
+    wrap.innerHTML='';
+    if(empty)empty.style.display='block';
+    return;
+  }
+  if(empty)empty.style.display='none';
+  let html='';
+  for(const key of keys){
+    const snap=await idbGet('backups',key).catch(()=>null);
+    if(!snap)continue;
+    const segCount=Object.keys(snap.segments||{}).length;
+    const d=new Date(snap.createdAt);
+    const dateLabel=fmtDateFull(snap.createdAt.slice(0,10))+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    html+=`<div class="snapshot-row">
+      <div class="s-info">
+        <div class="s-date">${esc(dateLabel)}${snap.manual?' · Manual':''}</div>
+        <div class="s-meta">${segCount} segment${segCount!==1?'s':''}</div>
+      </div>
+      <div class="s-actions">
+        <button class="icon-btn" onclick="restoreFromSnapshot('${key}')" aria-label="Restore">↺</button>
+        <button class="icon-btn" onclick="deleteSnapshot('${key}')" aria-label="Delete">🗑</button>
+      </div>
+    </div>`;
+  }
+  wrap.innerHTML=html;
+}
+document.getElementById('autoBackupIntervalDays').addEventListener('input',e=>{
+  state.emp.autoBackupIntervalDays=parseFloat(e.target.value)||7;persist();persistProfile();
+});
+document.getElementById('autoBackupKeepCount').addEventListener('input',e=>{
+  state.emp.autoBackupKeepCount=parseFloat(e.target.value)||5;persist();persistProfile();
+  pruneOldBackups().then(renderBackupSnapshotList);
+});
+
 async function exportBackup(){
   const sel=document.getElementById('backupYearSelect');
   const chosen=sel?sel.value:'';
@@ -3020,6 +3338,9 @@ async function exportBackup(){
   setTimeout(()=>URL.revokeObjectURL(a.href),5000);
   const itemCount=Object.values(monthsSubset).reduce((s,arr)=>s+arr.length,0);
   noteMsg(`✓ Backup downloaded — ${label} (${itemCount} item${itemCount!==1?'s':''}, ${fmtKB(blob.size)})`);
+  state.emp.lastManualExportAt=new Date().toISOString();
+  persistProfile();
+  renderLastExportText();
 }
 function csvEscape(val){
   const s=String(val==null?'':val);
@@ -3113,13 +3434,13 @@ document.getElementById('importFile').addEventListener('change',ev=>{
       msg+='\nContinue?';
       if(!confirm(msg))return;
       if(p.state&&p.state.emp){
-        ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes','otBaseSalary','otMidnightWeekday','otMidnightHoliday','workDays','ocrEnabled'].forEach(k=>{
+        ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes','otBaseSalary','otMidnightWeekday','otMidnightHoliday','workDays','ocrEnabled','autoBackupEnabled','autoBackupIntervalDays','autoBackupKeepCount','lastAutoBackupAt','lastManualExportAt'].forEach(k=>{
           if(!state.emp[k]&&p.state.emp[k])state.emp[k]=p.state.emp[k];
         });
         // Belt-and-suspenders: coerce numeric settings to safe finite numbers so a
         // corrupted or hand-edited backup file can never inject NaN into the OT/pay
         // calculations, even indirectly through a settings value.
-        for(const k of['mileageRate','otBreakMinutes','otBaseSalary','otMidnightWeekday','otMidnightHoliday']){
+        for(const k of['mileageRate','otBreakMinutes','otBaseSalary','otMidnightWeekday','otMidnightHoliday','autoBackupIntervalDays','autoBackupKeepCount']){
           if(state.emp[k]!==undefined){
             const n=Number(state.emp[k]);
             state.emp[k]=Number.isFinite(n)?n:undefined;
@@ -3255,6 +3576,10 @@ document.getElementById('importFile').addEventListener('change',ev=>{
       renderWorkDayRow();
       renderSavedSignature();
       applyOCRSwitchUI();
+      applyAutoBackupSwitchUI();
+      document.getElementById('autoBackupIntervalDays').value=state.emp.autoBackupIntervalDays||7;
+      document.getElementById('autoBackupKeepCount').value=state.emp.autoBackupKeepCount||5;
+      renderLastExportText();
       updateStorageUsage();
       noteMsg((missingImages?'✓ Restored (some images skipped — storage full) — ':'✓ ')+`Added ${newKeys.length} expense + ${newOTKeys.length} OT month(s), ${newTasks.length} task(s), ${newNotes.length} note(s)`);
     }catch(e){alert('Invalid file — please select a .json file exported from this app.');}
@@ -5080,6 +5405,14 @@ function sendOTApprovalEmail(){
   window.location.href=mailto;
 }
 
+function updateHeaderClock(){
+  const el=document.getElementById('headerClock');
+  if(!el)return;
+  const now=new Date();
+  el.textContent=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+}
+updateHeaderClock();
+setInterval(updateHeaderClock,15000);
 init();
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
