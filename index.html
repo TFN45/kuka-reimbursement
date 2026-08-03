@@ -1321,6 +1321,19 @@ try{
   <button onclick="closeViewer()">Close</button>
 </div>
 
+<!-- Shared photo chooser (Web Share Target) -->
+<div class="overlay" id="shareChooserOverlay">
+  <div class="sheet" style="max-width:420px">
+    <h2>Shared Photo <button onclick="closeShareChooser()" aria-label="Close">✕</button></h2>
+    <img id="sharePreviewImg" alt="Shared photo" style="width:100%;border-radius:var(--r-md);margin-bottom:14px;display:block">
+    <p style="font-size:.85rem;color:var(--ink-2);margin-bottom:14px">Attach this photo to a new:</p>
+    <div class="btn-row" style="flex-direction:column;gap:8px">
+      <button class="btn btn-primary" style="width:100%" onclick="useSharedPhotoFor('expense')">💰 Expense Receipt</button>
+      <button class="btn btn-ghost" style="width:100%" onclick="useSharedPhotoFor('note')">📝 Site Note</button>
+    </div>
+  </div>
+</div>
+
 <!-- Receipt picker: link to another entry's receipt instead of uploading a duplicate -->
 <div class="overlay" id="receiptPickerOverlay" onclick="if(event.target===this)closeReceiptPicker()">
   <div class="sheet">
@@ -2099,6 +2112,7 @@ async function init(){
   applyOCRSwitchUI();
   checkAutoBackupDue();
   handleShortcutAction();
+  handleSharedPhoto();
   const minDisplay=1500;
   const elapsed=Date.now()-splashStart;
   if(elapsed<minDisplay)await new Promise(r=>setTimeout(r,minDisplay-elapsed));
@@ -2145,6 +2159,58 @@ function handleShortcutAction(){
       window.history.replaceState({},'',cleanUrl);
     }
   }catch(e){}
+}
+let pendingSharedPhotoBlob=null;
+async function handleSharedPhoto(){
+  const params=new URLSearchParams(window.location.search);
+  if(params.get('share')!=='1')return;
+  window.history.replaceState({},'',window.location.pathname);
+  if(!window.caches)return;
+  try{
+    const cache=await caches.open('share-target-inbox');
+    const res=await cache.match('/__shared-photo');
+    if(!res)return;
+    const blob=await res.blob();
+    await cache.delete('/__shared-photo');
+    showSharedPhotoChooser(blob);
+  }catch(e){}
+}
+function showSharedPhotoChooser(blob){
+  pendingSharedPhotoBlob=blob;
+  document.getElementById('sharePreviewImg').src=URL.createObjectURL(blob);
+  document.getElementById('shareChooserOverlay').classList.add('open');
+}
+function closeShareChooser(){
+  document.getElementById('shareChooserOverlay').classList.remove('open');
+  pendingSharedPhotoBlob=null;
+}
+function useSharedPhotoFor(type){
+  const blob=pendingSharedPhotoBlob;
+  closeShareChooser();
+  if(!blob)return;
+  const file=new File([blob],'shared-photo.jpg',{type:blob.type||'image/jpeg'});
+  const dt=new DataTransfer();
+  dt.items.add(file);
+  // Feed the file into the real file input and let its existing 'change'
+  // handler do the work — same compression/OCR/staging path as a normal
+  // manual pick, nothing duplicated here.
+  if(type==='expense'){
+    setView('home');
+    openSheet();
+    setTimeout(()=>{
+      const input=document.getElementById('fReceipt');
+      input.files=dt.files;
+      input.dispatchEvent(new Event('change',{bubbles:true}));
+    },200);
+  }else if(type==='note'){
+    setView('notes');
+    openNoteSheet();
+    setTimeout(()=>{
+      const input=document.getElementById('noteImageFile');
+      input.files=dt.files;
+      input.dispatchEvent(new Event('change',{bubbles:true}));
+    },200);
+  }
 }
 async function load(){
   try{const v=await kv.get(KEY);if(v)state=JSON.parse(v);}catch(e){}

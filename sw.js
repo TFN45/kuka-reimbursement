@@ -12,6 +12,24 @@ self.addEventListener('activate',e=>{
   self.clients.claim();
 });
 self.addEventListener('fetch',e=>{
+  const url=new URL(e.request.url);
+  // Web Share Target: the OS routes a shared photo here as a POST. This is
+  // static hosting with no backend, so the service worker itself has to
+  // catch it, stash the file, and hand off to the app via a redirect.
+  if(e.request.method==='POST'&&url.pathname.endsWith('/index.html')){
+    e.respondWith((async()=>{
+      try{
+        const formData=await e.request.formData();
+        const file=formData.get('photos');
+        if(file&&file.size>0){
+          const cache=await caches.open('share-target-inbox');
+          await cache.put('/__shared-photo',new Response(file,{headers:{'Content-Type':file.type||'image/jpeg'}}));
+        }
+      }catch(err){}
+      return Response.redirect('./index.html?share=1',303);
+    })());
+    return;
+  }
   if(e.request.method!=='GET')return;
   const isAppShell=e.request.mode==='navigate'||e.request.destination==='document'||e.request.url.endsWith('index.html')||e.request.url.endsWith('/');
   if(isAppShell){
