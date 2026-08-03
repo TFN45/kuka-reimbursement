@@ -18,15 +18,17 @@ self.addEventListener('fetch',e=>{
   // catch it, stash the file, and hand off to the app via a redirect.
   if(e.request.method==='POST'&&url.pathname.endsWith('/index.html')){
     e.respondWith((async()=>{
+      let ok=false;
       try{
         const formData=await e.request.formData();
         const file=formData.get('photos');
         if(file&&file.size>0){
           const cache=await caches.open('share-target-inbox');
           await cache.put('/__shared-photo',new Response(file,{headers:{'Content-Type':file.type||'image/jpeg'}}));
+          ok=true;
         }
       }catch(err){}
-      return Response.redirect('./index.html?share=1',303);
+      return Response.redirect(ok?'./index.html?share=1':'./index.html?share=error',303);
     })());
     return;
   }

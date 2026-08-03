@@ -2163,17 +2163,31 @@ function handleShortcutAction(){
 let pendingSharedPhotoBlob=null;
 async function handleSharedPhoto(){
   const params=new URLSearchParams(window.location.search);
-  if(params.get('share')!=='1')return;
+  const shareState=params.get('share');
+  if(shareState==='error'){
+    window.history.replaceState({},'',window.location.pathname);
+    alert('Sharing failed: the app opened, but no photo file was received (the service worker didn\'t see a "photos" field in the share, or the file was empty). Try sharing again from the gallery/camera app.');
+    return;
+  }
+  if(shareState!=='1')return;
   window.history.replaceState({},'',window.location.pathname);
-  if(!window.caches)return;
+  if(!window.caches){
+    alert('Shared photo could not be loaded: this browser doesn\'t support the Cache API needed for sharing.');
+    return;
+  }
   try{
     const cache=await caches.open('share-target-inbox');
     const res=await cache.match('/__shared-photo');
-    if(!res)return;
+    if(!res){
+      alert('The app opened via Share, but no photo was found waiting for it. This usually means the share reached the app but the service worker didn\'t manage to stash the file — try sharing again, and if it keeps happening this is worth reporting.');
+      return;
+    }
     const blob=await res.blob();
     await cache.delete('/__shared-photo');
     showSharedPhotoChooser(blob);
-  }catch(e){}
+  }catch(e){
+    alert('Shared photo could not be loaded: '+(e&&e.message?e.message:'unknown error'));
+  }
 }
 function showSharedPhotoChooser(blob){
   pendingSharedPhotoBlob=blob;
