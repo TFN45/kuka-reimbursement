@@ -2130,6 +2130,15 @@ function handleShortcutAction(){
     }else if(action==='search'){
       const el=document.getElementById('entrySearch');
       if(el)setTimeout(()=>el.focus(),300);
+    }else if(action==='add-ot'){
+      setView('ot');
+      openOTSheet();
+    }else if(action==='add-task'){
+      setView('tasks');
+      openTaskSheet();
+    }else if(action==='add-note'){
+      setView('notes');
+      openNoteSheet();
     }
     if(action){
       const cleanUrl=window.location.pathname;

@@ -1,65 +1,56 @@
 {
   "id": "/kuka-reimbursement/",
-  "name": "KUKA OS Expense Reimbursement",
-  "short_name": "KUKA Reimb.",
-  "description": "Expense reimbursement form with receipt photo attachments",
+  "name": "KUKA OS",
+  "short_name": "KUKA OS",
+  "description": "Expense reimbursement, overtime tracking, tasks, and site notes for field engineers — all in one offline-first PWA",
   "start_url": "/kuka-reimbursement/",
-  "display": "fullscreen",
-  "background_color": "#F4F4F2",
-  "theme_color": "#1B1D20",
+  "display": "standalone",
+  "display_override": ["fullscreen", "standalone"],
+  "background_color": "#0A0A0B",
+  "theme_color": "#000000",
   "orientation": "portrait",
+  "lang": "en",
   "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
     {
       "name": "Add Expense",
-      "short_name": "Add",
+      "short_name": "Add Expense",
       "description": "Add a new expense item",
       "url": "/kuka-reimbursement/index.html?action=add",
-      "icons": [
-        {
-          "src": "icon-192.png",
-          "sizes": "192x192",
-          "type": "image/png"
-        }
-      ]
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Add OT Entry",
+      "short_name": "Add OT",
+      "description": "Log a new overtime check-in/check-out entry",
+      "url": "/kuka-reimbursement/index.html?action=add-ot",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Add Task",
+      "short_name": "Add Task",
+      "description": "Add a new job or task with a customer site and due date",
+      "url": "/kuka-reimbursement/index.html?action=add-task",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Add Note",
+      "short_name": "Add Note",
+      "description": "Add a new site note with photos",
+      "url": "/kuka-reimbursement/index.html?action=add-note",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Search Expenses",
       "short_name": "Search",
       "description": "Search or filter your expense items",
       "url": "/kuka-reimbursement/index.html?action=search",
-      "icons": [
-        {
-          "src": "icon-192.png",
-          "sizes": "192x192",
-          "type": "image/png"
-        }
-      ]
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ],
   "screenshots": [
@@ -75,10 +66,5 @@
       "type": "image/png",
       "form_factor": "wide"
     }
-  ],
-  "lang": "en",
-  "display_override": [
-    "fullscreen",
-    "window-controls-overlay"
   ]
 }
