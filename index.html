@@ -5018,6 +5018,40 @@ function updateOTHolidayNotice(){
   }
 }
 document.getElementById('otDate').addEventListener('input',updateOTHolidayNotice);
+function summarizeOTEntry(e){
+  const bits=[];
+  if(e.ot1x)bits.push(e.ot1x.toFixed(2)+' hrs @1×');
+  if(e.ot15x)bits.push(e.ot15x.toFixed(2)+' hrs @1.5×');
+  if(e.ot3x)bits.push(e.ot3x.toFixed(2)+' hrs @3×');
+  if(e.otCustom)bits.push(e.otCustom.toFixed(2)+' hrs @'+(e.customRate||'?')+'×');
+  const otPart=bits.length?bits.join(', '):'no OT hours';
+  return `${e.timeIn||'?'}–${e.timeOut||'?'} (${otPart})`;
+}
+document.getElementById('otDate').addEventListener('change',ev=>{
+  if(otEditIndex!==null)return; // already editing this exact entry — not a duplicate
+  const dateVal=ev.target.value;
+  if(!dateVal)return;
+  const existingIdx=state.otEntries.findIndex(e=>e.date===dateVal);
+  if(existingIdx===-1)return;
+  const existing=state.otEntries[existingIdx];
+  const wantsEdit=confirm(
+    `You already have an OT entry for ${fmtDateFull(dateVal)}:\n${summarizeOTEntry(existing)}\n\n`+
+    `Press OK to edit that entry instead, or Cancel to pick a different date.`
+  );
+  if(wantsEdit){
+    closeOTSheet();
+    openOTSheet(existingIdx);
+  }else{
+    ev.target.value='';
+    updateOTHolidayNotice();
+    setTimeout(()=>{
+      ev.target.focus();
+      if(typeof ev.target.showPicker==='function'){
+        try{ev.target.showPicker();}catch(err){}
+      }
+    },50);
+  }
+});
 document.getElementById('holidayNewName').addEventListener('keydown',ev=>{
   if(ev.key==='Enter'){ev.preventDefault();addHolidayManual();}
 });
