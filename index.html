@@ -5561,8 +5561,11 @@ function buildTimesheetPrint(){
       const dateStr=year+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
       const e=byDate[dateStr];
       const lbl=TS_DAY_LABELS[weekday];
-      const remarkText=e?[e.details,e.location?`📍 ${otLocationDisplay(e.location)}`:''].filter(Boolean).join(' — '):'';
-      const isHoliday=!isWorkDay(weekday)||!!holidayFor(dateStr);
+      const holiday=holidayFor(dateStr);
+      const remarkText=e
+        ?[e.details,e.location?`📍 ${otLocationDisplay(e.location)}`:''].filter(Boolean).join(' — ')
+        :(holiday?`🎌 ${holiday.name}`:'');
+      const isHoliday=!isWorkDay(weekday)||!!holiday;
       rows+=`<tr${isHoliday?' class="ts-holiday"':''}>
         <td>${String(day).padStart(2,'0')}/${String(month).padStart(2,'0')}</td>
         <td class="ts-day">${lbl.th} (${lbl.en})</td>
