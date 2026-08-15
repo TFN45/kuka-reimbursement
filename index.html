@@ -2472,15 +2472,16 @@ async function aiRephrase(targetInputId,contextType){
   noteMsg('✨ AI กำลังเรียบเรียงภาษาอังกฤษ…');
   try{
     const hint=AI_CONTEXT_HINTS[contextType]||'';
-    const res=await withTimeout(fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,{
+    const res=await withTimeout(fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent`,{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json','x-goog-api-key':apiKey},
       body:JSON.stringify({
         contents:[{parts:[{text:KUKA_SYSTEM_PROMPT+(hint?'\n\nContext: '+hint:'')+'\n\nInput:\n'+text}]}]
       })
     }),20000);
     if(!res.ok){
       if(res.status===400||res.status===403)throw new Error('invalid-key');
+      if(res.status===404)throw new Error('model-gone');
       if(res.status===429)throw new Error('rate-limit');
       throw new Error('http-'+res.status);
     }
@@ -2499,6 +2500,7 @@ async function aiRephrase(targetInputId,contextType){
     const msg=m==='timeout'?'Request timed out — please check your connection and try again.'
       :m==='invalid-key'?'API Key ไม่ถูกต้อง หรือไม่มีสิทธิ์ใช้งาน โปรดตรวจสอบใน Settings'
       :m==='rate-limit'?'Gemini API quota exceeded — please try again in a moment.'
+      :m==='model-gone'?'The AI model used by this app is no longer available from Google — please let your developer know so the model name can be updated.'
       :m==='blocked'?'AI declined to process this text (safety filter). Please rephrase and try again.'
       :m==='empty'?'AI returned an empty response — please try again.'
       :'AI polish failed — please try again.';
