@@ -309,6 +309,14 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   padding:2px 6px;margin:-2px -6px 0 0;border-radius:5px;
 }
 .manage-link:active{background:var(--kuka-soft)}
+.ai-polish-link{
+  float:right;font-size:.72rem;font-weight:700;color:#7A3FB0;
+  cursor:pointer;text-transform:none;letter-spacing:0;
+  padding:2px 6px;margin:-2px -6px 0 0;border-radius:5px;
+}
+.ai-polish-link:active{background:#F1E9FA}
+.ai-polish-link[data-busy="1"]{opacity:.5;pointer-events:none}
+:root[data-theme="dark"] .ai-polish-link:active{background:#241A30}
 .required-mark{color:var(--kuka);font-weight:700}
 .tag-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;border-radius:10px;transition:box-shadow .25s ease}
 .tag-row.flash{box-shadow:0 0 0 3px rgba(255,90,0,.35)}
@@ -1078,6 +1086,15 @@ try{
       <div class="field"><label>Work Location</label><input id="workLocation" placeholder="e.g. KUKA (Thailand) Co., Ltd."></div>
     </div>
 
+    <div class="section-label">AI Writing Assistant</div>
+    <div class="card">
+      <div class="field">
+        <label>Google Gemini API Key</label>
+        <input id="geminiApiKey" type="password" placeholder="AIza..." autocomplete="off">
+      </div>
+      <div class="field-note" style="margin-bottom:0">Used to polish Thai/rough English into professional English on expense, OT, and note fields. Stored on this device only — never included in backup files, and sent only to Google's Gemini API when you tap ✨ AI Writing.</div>
+    </div>
+
     <div class="section-label">Approval</div>
     <div class="card">
       <div class="field"><label>Approving Manager — Name</label><input id="mgrName" placeholder="Manager's full name"></div>
@@ -1269,11 +1286,11 @@ try{
       <div class="pair-hint">Type a company name or abbreviation to search your saved list — tap a match, or if it's new just keep typing and pick its Province; it's added to your list automatically for next time.</div>
     </div>
     <div class="field">
-      <label>Description <span class="manage-link" onclick="toggleManage('desc')" id="descManageLink">✎ Manage</span></label>
+      <label>Description <span class="ai-polish-link" id="fDescAiLink" onclick="aiRephrase('fDesc','expense_description')">✨ AI Writing</span><span class="manage-link" onclick="toggleManage('desc')" id="descManageLink">✎ Manage</span></label>
       <div class="chip-row" id="descChips"></div>
       <input id="fDesc" placeholder="e.g. Fuel, toll fees, hotel accommodation">
     </div>
-    <div class="field"><label>Business Purpose</label><input id="fPurpose" placeholder="e.g. Customer site visit — DENSO plant, Chonburi"></div>
+    <div class="field"><label>Business Purpose <span class="ai-polish-link" id="fPurposeAiLink" onclick="aiRephrase('fPurpose','business_purpose')">✨ AI Writing</span></label><input id="fPurpose" placeholder="e.g. Customer site visit — DENSO plant, Chonburi"></div>
     <div class="field"><label>Amount (THB)</label><input id="fAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00"></div>
     <div class="mileage-toggle" id="mileageToggle" onclick="toggleMileageCalc()">🚗 Calculate from distance instead</div>
     <div class="mileage-calc" id="mileageCalc" style="display:none">
@@ -1411,7 +1428,7 @@ try{
       </div>
       <div class="pair-hint">Same company list as Expense. Type a name, then tap its province — new companies are added to your list automatically.</div>
     </div>
-    <div class="field"><label>Details of Overtime Work</label><input id="otDetails" placeholder="e.g. Robot cell commissioning, urgent customer support"></div>
+    <div class="field"><label>Details of Overtime Work <span class="ai-polish-link" id="otDetailsAiLink" onclick="aiRephrase('otDetails','ot_details')">✨ AI Writing</span></label><input id="otDetails" placeholder="e.g. Robot cell commissioning, urgent customer support"></div>
     <div class="btn-row">
       <button class="btn btn-ghost" onclick="closeOTSheet()">Cancel</button>
       <button class="btn btn-primary" onclick="saveOTEntry()">Save</button>
@@ -1481,7 +1498,7 @@ try{
       </div>
     </div>
     <div class="field"><label>Date</label><input id="noteDate" type="date"></div>
-    <div class="field"><label>Content</label><textarea id="noteContent" rows="5" placeholder="Technical notes, what was found, what was done…"></textarea></div>
+    <div class="field"><label>Content <span class="ai-polish-link" id="noteContentAiLink" onclick="aiRephrase('noteContent','field_note')">✨ AI Writing</span></label><textarea id="noteContent" rows="5" placeholder="Technical notes, what was found, what was done…"></textarea></div>
     <div class="field">
       <label>Photos</label>
       <div class="extra-receipt-grid" id="noteImageGrid"></div>
@@ -2231,7 +2248,7 @@ async function load(){
   try{
     const pv=await kv.get(PKEY);
     if(pv){const p=JSON.parse(pv);
-      ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes','otBaseSalary','otMidnightWeekday','otMidnightHoliday','workDays','ocrEnabled','autoBackupEnabled','autoBackupIntervalDays','autoBackupKeepCount','lastAutoBackupAt','lastManualExportAt'].forEach(k=>{if(!state.emp[k]&&p[k])state.emp[k]=p[k];});
+      ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes','otBaseSalary','otMidnightWeekday','otMidnightHoliday','workDays','ocrEnabled','autoBackupEnabled','autoBackupIntervalDays','autoBackupKeepCount','lastAutoBackupAt','lastManualExportAt','geminiApiKey'].forEach(k=>{if(!state.emp[k]&&p[k])state.emp[k]=p[k];});
       if(!state.emp.descPresets&&Array.isArray(p.descPresets))state.emp.descPresets=p.descPresets;
       if(!state.emp.locPresets&&Array.isArray(p.locPresets))state.emp.locPresets=p.locPresets;
     }
@@ -2260,6 +2277,7 @@ async function load(){
   document.getElementById('empId').value=state.emp.id||'';
   document.getElementById('empPosition').value=state.emp.position||'';
   document.getElementById('workLocation').value=state.emp.workLocation||'';
+  document.getElementById('geminiApiKey').value=state.emp.geminiApiKey||'';
   document.getElementById('otStdCheckIn').value=state.emp.otStdCheckIn||'09:00';
   document.getElementById('otStdCheckOut').value=state.emp.otStdCheckOut||'18:00';
   document.getElementById('otBreakMinutes').value=state.emp.otBreakMinutes!==undefined?state.emp.otBreakMinutes:60;
@@ -2306,12 +2324,12 @@ let profTimer=null;
 function persistProfile(){
   clearTimeout(profTimer);
   profTimer=setTimeout(()=>{
-    kv.set(PKEY,JSON.stringify({name:state.emp.name,id:state.emp.id,position:state.emp.position,workLocation:state.emp.workLocation,mgrName:state.emp.mgrName,mgrPosition:state.emp.mgrPosition,mgrEmail:state.emp.mgrEmail,descPresets:state.emp.descPresets,locPresets:state.emp.locPresets,signature:state.emp.signature,mileageRate:state.emp.mileageRate,otStdCheckIn:state.emp.otStdCheckIn,otStdCheckOut:state.emp.otStdCheckOut,otBreakMinutes:state.emp.otBreakMinutes,otBaseSalary:state.emp.otBaseSalary,otMidnightWeekday:state.emp.otMidnightWeekday,otMidnightHoliday:state.emp.otMidnightHoliday,workDays:state.emp.workDays,ocrEnabled:state.emp.ocrEnabled,autoBackupEnabled:state.emp.autoBackupEnabled,autoBackupIntervalDays:state.emp.autoBackupIntervalDays,autoBackupKeepCount:state.emp.autoBackupKeepCount,lastAutoBackupAt:state.emp.lastAutoBackupAt,lastManualExportAt:state.emp.lastManualExportAt})).catch(()=>{});
+    kv.set(PKEY,JSON.stringify({name:state.emp.name,id:state.emp.id,position:state.emp.position,workLocation:state.emp.workLocation,mgrName:state.emp.mgrName,mgrPosition:state.emp.mgrPosition,mgrEmail:state.emp.mgrEmail,descPresets:state.emp.descPresets,locPresets:state.emp.locPresets,signature:state.emp.signature,mileageRate:state.emp.mileageRate,otStdCheckIn:state.emp.otStdCheckIn,otStdCheckOut:state.emp.otStdCheckOut,otBreakMinutes:state.emp.otBreakMinutes,otBaseSalary:state.emp.otBaseSalary,otMidnightWeekday:state.emp.otMidnightWeekday,otMidnightHoliday:state.emp.otMidnightHoliday,workDays:state.emp.workDays,ocrEnabled:state.emp.ocrEnabled,autoBackupEnabled:state.emp.autoBackupEnabled,autoBackupIntervalDays:state.emp.autoBackupIntervalDays,autoBackupKeepCount:state.emp.autoBackupKeepCount,lastAutoBackupAt:state.emp.lastAutoBackupAt,lastManualExportAt:state.emp.lastManualExportAt,geminiApiKey:state.emp.geminiApiKey})).catch(()=>{});
   },600);
 }
-['empName','empId','empPosition','workLocation','mgrName','mgrPosition','mgrEmail'].forEach(id=>{
+['empName','empId','empPosition','workLocation','mgrName','mgrPosition','mgrEmail','geminiApiKey'].forEach(id=>{
   document.getElementById(id).addEventListener('input',e=>{
-    const map={empName:'name',empId:'id',empPosition:'position',workLocation:'workLocation',mgrName:'mgrName',mgrPosition:'mgrPosition',mgrEmail:'mgrEmail'};
+    const map={empName:'name',empId:'id',empPosition:'position',workLocation:'workLocation',mgrName:'mgrName',mgrPosition:'mgrPosition',mgrEmail:'mgrEmail',geminiApiKey:'geminiApiKey'};
     state.emp[map[id]]=e.target.value;persist();persistProfile();
   });
 });
@@ -2417,6 +2435,78 @@ function withTimeout(promise,ms){
     promise,
     new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))
   ]);
+}
+
+/* ---------- AI Writing Assistant (Gemini) ---------- */
+const KUKA_SYSTEM_PROMPT=`You are an expert corporate English writing assistant for a professional KUKA Robotics & Automation Systems Engineer (KUKA Field Service / Project Engineer).
+
+Your job is to convert user notes or inputs (which may be in casual Thai, broken English, or technical shorthand) into polished, natural, concise, and formal corporate English suitable for official reimbursement forms, Overtime (OT) approval sheets, and Field Service technical reports.
+
+KUKA Domain Knowledge & Technical Terms:
+- Hardware & Components: KUKA smartPAD / teach pendant, KRC4 / KRC5 controllers, robot axes (A1–A6, external axes E1–E6), servo motors, RDC (Resolver Digital Converter), CCU, mastering sets (EMD), wrist joints, counterbalance.
+- Software & Engineering: KRL (KUKA Robot Language), WorkVisual, safe operation / SafeOperation, mastering / remastering (zero-point calibration), tool/base calibration, software options (SafeSingleBrake, ArcTech, etc.).
+- Activities: Commissioning, troubleshooting, on-site diagnostics, preventive maintenance (PM), cycle time optimization, mechanical/electrical overhaul.
+
+Rules:
+1. Convert the input into formal, grammatically correct corporate English.
+2. Preserve exact model names, plant locations, and technical terms accurately.
+3. Output ONLY the resulting English text directly (no explanations, no introductions, no quotation marks).`;
+
+const AI_CONTEXT_HINTS={
+  expense_description:'This text is the short Description line of an expense reimbursement entry.',
+  business_purpose:'This text is the Business Purpose line of an expense reimbursement entry, explaining why the expense was incurred.',
+  ot_details:'This text describes the Details of Overtime Work performed, for an OT approval sheet.',
+  field_note:'This text is a Field Service technical note describing work found and performed on-site.'
+};
+
+async function aiRephrase(targetInputId,contextType){
+  const apiKey=(state.emp.geminiApiKey||'').trim();
+  const linkId=targetInputId+'AiLink';
+  const link=document.getElementById(linkId);
+  const el=document.getElementById(targetInputId);
+  if(!apiKey){alert('Please add your Google Gemini API Key in Settings first.');return;}
+  const text=(el.value||'').trim();
+  if(!text){alert('Please enter some text first.');return;}
+  el.disabled=true;
+  if(link)link.setAttribute('data-busy','1');
+  noteMsg('✨ AI กำลังเรียบเรียงภาษาอังกฤษ…');
+  try{
+    const hint=AI_CONTEXT_HINTS[contextType]||'';
+    const res=await withTimeout(fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        contents:[{parts:[{text:KUKA_SYSTEM_PROMPT+(hint?'\n\nContext: '+hint:'')+'\n\nInput:\n'+text}]}]
+      })
+    }),20000);
+    if(!res.ok){
+      if(res.status===400||res.status===403)throw new Error('invalid-key');
+      if(res.status===429)throw new Error('rate-limit');
+      throw new Error('http-'+res.status);
+    }
+    const data=await res.json();
+    const blockReason=data.promptFeedback&&data.promptFeedback.blockReason;
+    if(blockReason)throw new Error('blocked');
+    const out=data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0]&&data.candidates[0].content.parts[0].text;
+    const cleaned=(out||'').trim();
+    if(!cleaned)throw new Error('empty');
+    el.value=cleaned;
+    persist();
+    noteMsg('✓ ปรับข้อความเรียบร้อย');
+  }catch(e){
+    noteMsg('');
+    const m=e&&e.message;
+    const msg=m==='timeout'?'Request timed out — please check your connection and try again.'
+      :m==='invalid-key'?'API Key ไม่ถูกต้อง หรือไม่มีสิทธิ์ใช้งาน โปรดตรวจสอบใน Settings'
+      :m==='rate-limit'?'Gemini API quota exceeded — please try again in a moment.'
+      :m==='blocked'?'AI declined to process this text (safety filter). Please rephrase and try again.'
+      :m==='empty'?'AI returned an empty response — please try again.'
+      :'AI polish failed — please try again.';
+    alert(msg);
+  }finally{
+    el.disabled=false;
+    if(link)link.removeAttribute('data-busy');
+  }
 }
 function parseAmountFromText(text){
   if(!text)return null;
@@ -3314,6 +3404,7 @@ async function restoreFromSnapshot(key){
   document.getElementById('empId').value=state.emp.id||'';
   document.getElementById('empPosition').value=state.emp.position||'';
   document.getElementById('workLocation').value=state.emp.workLocation||'';
+  document.getElementById('geminiApiKey').value=state.emp.geminiApiKey||'';
   document.getElementById('mgrName').value=state.emp.mgrName||'';
   document.getElementById('mgrPosition').value=state.emp.mgrPosition||'';
   document.getElementById('mgrEmail').value=state.emp.mgrEmail||'';
@@ -3470,7 +3561,8 @@ async function exportBackup(){
       }
     }
   }
-  const payload={version:6,exported:new Date().toISOString(),state:{emp:state.emp,months:monthsSubset,otMonths:otMonthsSubset,tasks:state.tasks,notes:state.notes,holidays:state.holidays},receipts:rc};
+  const{geminiApiKey:_omitGeminiKey,...empForExport}=state.emp; // API key is device-local only — never bundled into backup files
+  const payload={version:6,exported:new Date().toISOString(),state:{emp:empForExport,months:monthsSubset,otMonths:otMonthsSubset,tasks:state.tasks,notes:state.notes,holidays:state.holidays},receipts:rc};
   const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
@@ -3576,7 +3668,7 @@ document.getElementById('importFile').addEventListener('change',ev=>{
       msg+='\nContinue?';
       if(!confirm(msg))return;
       if(p.state&&p.state.emp){
-        ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes','otBaseSalary','otMidnightWeekday','otMidnightHoliday','workDays','ocrEnabled','autoBackupEnabled','autoBackupIntervalDays','autoBackupKeepCount','lastAutoBackupAt','lastManualExportAt'].forEach(k=>{
+        ['name','id','position','workLocation','mgrName','mgrPosition','mgrEmail','signature','mileageRate','otStdCheckIn','otStdCheckOut','otBreakMinutes','otBaseSalary','otMidnightWeekday','otMidnightHoliday','workDays','ocrEnabled','autoBackupEnabled','autoBackupIntervalDays','autoBackupKeepCount','lastAutoBackupAt','lastManualExportAt','geminiApiKey'].forEach(k=>{
           if(!state.emp[k]&&p.state.emp[k])state.emp[k]=p.state.emp[k];
         });
         // Belt-and-suspenders: coerce numeric settings to safe finite numbers so a
@@ -3699,6 +3791,7 @@ document.getElementById('importFile').addEventListener('change',ev=>{
       document.getElementById('empId').value=state.emp.id||'';
       document.getElementById('empPosition').value=state.emp.position||'';
       document.getElementById('workLocation').value=state.emp.workLocation||'';
+      document.getElementById('geminiApiKey').value=state.emp.geminiApiKey||'';
       document.getElementById('otStdCheckIn').value=state.emp.otStdCheckIn||'09:00';
   document.getElementById('otStdCheckOut').value=state.emp.otStdCheckOut||'18:00';
       document.getElementById('otBreakMinutes').value=state.emp.otBreakMinutes!==undefined?state.emp.otBreakMinutes:60;
