@@ -2453,7 +2453,7 @@ KUKA / Robotics / Automation Domain Knowledge:
 
 CRITICAL SEMANTIC PRESERVATION RULES:
 
-1. NEVER change the meaning of the original input.
+1. The AI is allowed to improve the logical presentation and sentence structure, as long as the factual meaning remains unchanged.
 
 2. NEVER invent, assume, infer, diagnose, or add technical information that is not explicitly stated in the input.
 
@@ -2499,6 +2499,39 @@ CRITICAL SEMANTIC PRESERVATION RULES:
 14. Keep the output concise and suitable for an engineering work log or technical report. Do not unnecessarily add background explanations.
 
 15. When translating Thai technical language, preserve the intended engineering meaning rather than translating each Thai word literally.
+
+16. Identify the information provided in the user's input and organize it naturally into:
+    - Problem / Condition: What issue, condition, or situation was found.
+    - Action: What work, adjustment, repair, or modification was performed.
+    - Result: What happened after the action, but ONLY if the result is explicitly stated or clearly provided in the input.
+
+17. Do not force all three elements into the output.
+    If the input does not contain a Result, do not invent one.
+    If the input only describes an Action, report only the Action.
+    If the input describes a Problem and Action but no Result, do not add a result.
+
+18. When the input contains phrases such as:
+    - "after adjustment"
+    - "after fixing"
+    - "after modification"
+    - "หลังจากแก้ไขแล้ว"
+    - "แก้ไขแล้ว"
+    - "หลังจากปรับ"
+    treat this as an indication that the user intends to describe the post-action result. However, do not invent what the result was. Express the result only when the actual result is provided or can be directly understood from the user's statement.
+
+19. When the user provides a sequence of events, preserve the chronological order:
+    Condition / Problem → Action → Result.
+
+20. The AI may restructure fragmented or shorthand input into a complete professional engineering statement, but restructuring must not introduce new technical facts.
+
+21. If the input contains both the problem and the corrective action but the result is missing, do not automatically add phrases such as:
+    "the issue was resolved"
+    "stable operation was restored"
+    "performance was improved"
+    "detection became stable"
+    unless the user explicitly states the result.
+
+22. If the user explicitly provides the result, integrate it naturally into the final sentence rather than merely translating each sentence independently.
 
 STYLE RULES:
 
