@@ -122,3 +122,23 @@ All modules share a unified customer/site database so you never have to re-type 
 ---
 
 ## Project Structure
+├── index.html      # Entire application — UI markup, CSS themes, and JS logic
+├── sw.js           # Service worker: offline caching & Web Share Target handler
+├── manifest.json   # PWA manifest: icons, theme colors, shortcuts, file sharing
+├── icon-192.png    # PWA icon (192×192)
+└── icon-512.png    # PWA icon (512×512)
+
+
+---
+
+## Browser Support
+
+- **Optimized for:** Google Chrome & Microsoft Edge on Android.
+- **Compatible with:** Safari on iOS (PWA standalone mode), desktop Chromium browsers.
+- **Printing:** PDF layouts are specifically calibrated for A4 single-page and multi-page print standards.
+
+---
+
+## License
+
+Personal-use engineering suite. All rights reserved by the repository owner unless otherwise specified.
