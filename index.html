@@ -1449,7 +1449,7 @@ try{
 <div class="overlay" id="taskOverlay">
   <div class="sheet">
     <h2><span id="taskSheetTitle">Add Task</span><button onclick="closeTaskSheet()" aria-label="Close">✕</button></h2>
-    <div class="field"><label>Task Title <span class="required-mark">*</span></label><input id="taskTitle" placeholder="e.g. Replace conveyor guard, commission KR180"></div>
+    <div class="field"><label>Task Title <span class="required-mark">*</span><span class="ai-polish-link" id="taskTitleAiLink" onclick="aiRephrase('taskTitle','task_title')">✨ AI Writing</span></label><input id="taskTitle" placeholder="e.g. Replace conveyor guard, commission KR180"></div>
     <div class="field">
       <label>Customer / Site</label>
       <label class="abroad-check"><input type="checkbox" id="taskAbroadCheck" onchange="toggleAbroadMode('task')"> 🌍 Working outside Thailand — let me type location freely</label>
@@ -1478,7 +1478,7 @@ try{
         <option value="done">Done</option>
       </select>
     </div>
-    <div class="field"><label>Details</label><input id="taskDetails" placeholder="Optional notes about this task"></div>
+    <div class="field"><label>Details <span class="ai-polish-link" id="taskDetailsAiLink" onclick="aiRephrase('taskDetails','task_details')">✨ AI Writing</span></label><input id="taskDetails" placeholder="Optional notes about this task"></div>
     <div class="btn-row">
       <button class="btn btn-ghost" onclick="closeTaskSheet()">Cancel</button>
       <button class="btn btn-primary" onclick="saveTask()">Save</button>
@@ -1490,7 +1490,7 @@ try{
 <div class="overlay" id="noteOverlay">
   <div class="sheet">
     <h2><span id="noteSheetTitle">Add Note</span><button onclick="closeNoteSheet()" aria-label="Close">✕</button></h2>
-    <div class="field"><label>Title <span class="required-mark">*</span></label><input id="noteTitle" placeholder="e.g. DENSO robot 3 encoder fault"></div>
+    <div class="field"><label>Title <span class="required-mark">*</span><span class="ai-polish-link" id="noteTitleAiLink" onclick="aiRephrase('noteTitle','note_title')">✨ AI Writing</span></label><input id="noteTitle" placeholder="e.g. DENSO robot 3 encoder fault"></div>
     <div class="field">
       <label>Customer / Site <span style="font-weight:400;color:var(--ink-2);text-transform:none;letter-spacing:0;font-size:.78rem">(optional)</span></label>
       <label class="abroad-check"><input type="checkbox" id="noteAbroadCheck" onchange="toggleAbroadMode('note')"> 🌍 Working outside Thailand — let me type location freely</label>
@@ -2468,7 +2468,10 @@ const AI_CONTEXT_HINTS={
   expense_description:'This text is the short Description line of an expense reimbursement entry.',
   business_purpose:'This text is the Business Purpose line of an expense reimbursement entry, explaining why the expense was incurred.',
   ot_details:'This text describes the Details of Overtime Work performed, for an OT approval sheet.',
-  field_note:'This text is a Field Service technical note describing work found and performed on-site.'
+  field_note:'This text is a Field Service technical note describing work found and performed on-site.',
+  task_title:'This text is the short Title of a work task/job to be tracked on a task list.',
+  task_details:'This text is the optional Details/notes field of a work task on a task list.',
+  note_title:'This text is the short Title of a Field Service technical note.'
 };
 
 async function aiRephrase(targetInputId,contextType){
