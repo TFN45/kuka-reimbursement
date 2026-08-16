@@ -315,6 +315,15 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   padding:2px 6px;margin:-2px -6px 0 0;border-radius:5px;
 }
 .ai-polish-link:active{background:#F1E9FA}
+.ai-polish-link[data-busy="1"]{
+  opacity:.85;pointer-events:none;color:transparent;position:relative;
+}
+.ai-polish-link[data-busy="1"]::after{
+  content:'';position:absolute;left:50%;top:50%;width:11px;height:11px;
+  margin:-6px 0 0 -6px;border:2px solid #7A3FB0;border-right-color:transparent;
+  border-radius:50%;animation:aiPolishSpin .6s linear infinite;
+}
+@keyframes aiPolishSpin{to{transform:rotate(360deg)}}
 .ai-polish-link[data-busy="1"]{opacity:.5;pointer-events:none}
 :root[data-theme="dark"] .ai-polish-link:active{background:#241A30}
 .required-mark{color:var(--kuka);font-weight:700}
@@ -1187,10 +1196,10 @@ try{
     <div class="card">
       <div class="switch-row">
         <div>
-          <div class="switch-label">Suggest Amount from Receipt</div>
-          <div class="switch-sub">Scans an attached photo and suggests the total — never fills it in without your confirmation. Needs an internet connection the first time it's used.</div>
+          <div class="switch-label">Read Date & Amount from Receipt</div>
+          <div class="switch-sub">If a Gemini API Key is set in Settings, an attached photo is read by Gemini Vision and the Date & Amount fields are auto-filled — please double-check before saving. Without a key, it falls back to on-device scanning that only suggests an amount for you to confirm. Needs an internet connection.</div>
         </div>
-        <button type="button" class="switch" id="ocrSwitch" onclick="toggleOCR()" aria-label="Toggle receipt amount suggestion">
+        <button type="button" class="switch" id="ocrSwitch" onclick="toggleOCR()" aria-label="Toggle receipt scanning">
           <span class="switch-knob"></span>
         </button>
       </div>
@@ -2383,7 +2392,10 @@ document.getElementById('fReceipt').addEventListener('change',async ev=>{
     pendingRemoved=false;
     pendingReceiptRef=null;
     showAttachPreview(pendingReceipt.url,false);
-    if(state.emp.ocrEnabled)scanReceiptForAmount(file);
+    if(state.emp.ocrEnabled){
+      if((state.emp.geminiApiKey||'').trim())scanReceiptWithGemini(file);
+      else scanReceiptForAmount(file); // no Gemini key configured — fall back to local OCR (amount only, suggest-and-confirm)
+    }
   }catch(e){status.textContent='Could not read image — please try again.';}
   ev.target.value='';
 });
@@ -2440,125 +2452,17 @@ function withTimeout(promise,ms){
 /* ---------- AI Writing Assistant (Gemini) ---------- */
 const KUKA_SYSTEM_PROMPT=`You are an expert corporate English writing assistant for a professional KUKA Robotics & Automation Systems Engineer (KUKA Field Service / Project Engineer).
 
-Your job is to convert user notes or inputs, which may be written in casual Thai, broken English, mixed Thai-English, or technical shorthand, into polished, natural, concise, and professional corporate English suitable for Field Service technical reports, engineering work logs, Overtime (OT) approval sheets, reimbursement forms, and project documentation.
+Your job is to convert user notes or inputs (which may be in casual Thai, broken English, or technical shorthand) into polished, natural, concise, and formal corporate English suitable for official reimbursement forms, Overtime (OT) approval sheets, and Field Service technical reports.
 
-Your highest priority is SEMANTIC ACCURACY. The resulting English must preserve the exact meaning, facts, technical relationships, and intent of the user's original input.
+KUKA Domain Knowledge & Technical Terms:
+- Hardware & Components: KUKA smartPAD / teach pendant, KRC4 / KRC5 controllers, robot axes (A1–A6, external axes E1–E6), servo motors, RDC (Resolver Digital Converter), CCU, mastering sets (EMD), wrist joints, counterbalance.
+- Software & Engineering: KRL (KUKA Robot Language), WorkVisual, safe operation / SafeOperation, mastering / remastering (zero-point calibration), tool/base calibration, software options (SafeSingleBrake, ArcTech, etc.).
+- Activities: Commissioning, troubleshooting, on-site diagnostics, preventive maintenance (PM), cycle time optimization, mechanical/electrical overhaul.
 
-KUKA / Robotics / Automation Domain Knowledge:
-- Robot & Hardware: KUKA KR series, smartPAD / teach pendant, KRC4 / KRC5 controllers, robot axes (A1–A6), external axes (E1–E6), servo motors, RDC (Resolver Digital Converter), CCU, mastering sets (EMD), wrist joints, counterbalance.
-- Robot Software & Engineering: KRL (KUKA Robot Language), WorkVisual, SafeOperation, mastering / remastering, tool/base calibration, software configuration, safety functions, commissioning, troubleshooting, diagnostics, preventive maintenance (PM), cycle time optimization, mechanical and electrical work.
-- Automation: PLC, Mitsubishi FX5U, Modbus TCP, TCP/IP, I/O, sensors, actuators, HMI, robot-PLC communication, handshaking, interlocks, triggers, alarms, error recovery.
-- Vision & Camera Systems: industrial cameras, Basler cameras, GigE, FOV (Field of View), image processing, vision inspection, detection area, overlap zone, trigger, exposure, lighting, calibration, pick control, object detection, camera positioning.
-- Robotics Applications: pick-and-place, case packing, palletizing, depalletizing, packaging, machine tending, conveyor tracking, vision-guided picking, grippers, suction systems, AMR integration.
-
-CRITICAL SEMANTIC PRESERVATION RULES:
-
-1. The AI is allowed to improve the logical presentation and sentence structure, as long as the factual meaning remains unchanged.
-
-2. NEVER invent, assume, infer, diagnose, or add technical information that is not explicitly stated in the input.
-
-3. Do not change a stated condition into a different technical condition.
-   Example:
-   - "FOV was matched to the workpiece size" must NOT become "FOV was too narrow."
-   - "FOV was too narrow" must NOT become "FOV was matched to the workpiece size."
-
-4. Preserve the original cause-and-effect relationship exactly.
-   If the user states:
-   "A caused B, resulting in C"
-   preserve that relationship in the English output.
-
-5. Do not create a root cause that the user did not explicitly provide.
-
-6. Do not add technical conclusions such as:
-   - improved accuracy
-   - improved stability
-   - optimized performance
-   - eliminated errors
-   - resolved the root cause
-   - ensured stable detection
-   - improved reliability
-   unless the user explicitly states that result.
-
-7. Do not add measurements, quantities, dates, locations, equipment specifications, failure modes, or operating conditions that are not present in the input.
-
-8. Preserve technical abbreviations and terminology when they are clear and appropriate.
-   Examples:
-   FOV, PLC, HMI, I/O, TCP/IP, Modbus TCP, AMR, KR10, KRC4, KRC5, A1–A6.
-
-9. Preserve exact equipment model names, machine names, plant names, product names, and technical identifiers. Do not replace them with generic terms.
-
-10. You may correct grammar, improve sentence structure, clarify awkward wording, and convert technical shorthand into professional English, but you must NOT change the underlying technical meaning.
-
-11. If the original input is ambiguous, incomplete, or grammatically unclear, DO NOT guess the intended technical meaning.
-    Use neutral professional wording that stays as close as possible to the original meaning.
-
-12. Technical knowledge should be used ONLY to understand and correctly express the user's terminology. It must NOT be used to add new facts or perform an engineering diagnosis.
-
-13. Do not exaggerate the result or make the work sound more successful than stated by the user.
-
-14. Keep the output concise and suitable for an engineering work log or technical report. Do not unnecessarily add background explanations.
-
-15. When translating Thai technical language, preserve the intended engineering meaning rather than translating each Thai word literally.
-
-16. Identify the information provided in the user's input and organize it naturally into:
-    - Problem / Condition: What issue, condition, or situation was found.
-    - Action: What work, adjustment, repair, or modification was performed.
-    - Result: What happened after the action, but ONLY if the result is explicitly stated or clearly provided in the input.
-
-17. Do not force all three elements into the output.
-    If the input does not contain a Result, do not invent one.
-    If the input only describes an Action, report only the Action.
-    If the input describes a Problem and Action but no Result, do not add a result.
-
-18. When the input contains phrases such as:
-    - "after adjustment"
-    - "after fixing"
-    - "after modification"
-    - "หลังจากแก้ไขแล้ว"
-    - "แก้ไขแล้ว"
-    - "หลังจากปรับ"
-    treat this as an indication that the user intends to describe the post-action result. However, do not invent what the result was. Express the result only when the actual result is provided or can be directly understood from the user's statement.
-
-19. When the user provides a sequence of events, preserve the chronological order:
-    Condition / Problem → Action → Result.
-
-20. The AI may restructure fragmented or shorthand input into a complete professional engineering statement, but restructuring must not introduce new technical facts.
-
-21. If the input contains both the problem and the corrective action but the result is missing, do not automatically add phrases such as:
-    "the issue was resolved"
-    "stable operation was restored"
-    "performance was improved"
-    "detection became stable"
-    unless the user explicitly states the result.
-
-22. If the user explicitly provides the result, integrate it naturally into the final sentence rather than merely translating each sentence independently.
-
-STYLE RULES:
-
-- Use professional corporate English.
-- Use clear engineering terminology.
-- Prefer concise active voice where appropriate.
-- Use past tense for completed work.
-- Use present tense only for current conditions or ongoing states.
-- Avoid unnecessary adjectives and marketing language.
-- Avoid overly complex sentences.
-- Do not use conversational language.
-- Do not use bullet points unless the original input clearly contains multiple separate items.
-- Do not add headings unless explicitly requested.
-
-FINAL OUTPUT RULE:
-
-Output ONLY the final English text.
-
-Do not provide:
-- explanations
-- analysis
-- comments
-- alternatives
-- notes
-- quotation marks
-- prefixes such as "Here is the revised version:"
-- any text other than the final English result.`;
+Rules:
+1. Convert the input into formal, grammatically correct corporate English.
+2. Preserve exact model names, plant locations, and technical terms accurately.
+3. Output ONLY the resulting English text directly (no explanations, no introductions, no quotation marks).`;
 
 const AI_CONTEXT_HINTS={
   expense_description:'This text is the short Description line of an expense reimbursement entry.',
@@ -2686,6 +2590,68 @@ function dismissOCRSuggestion(){
   const banner=document.getElementById('ocrSuggest');
   if(banner){banner.style.display='none';banner.innerHTML='';}
 }
+
+/* ---------- receipt read via Gemini Vision (date + amount, auto-filled) ---------- */
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>{
+      const result=reader.result||'';
+      const comma=result.indexOf(',');
+      resolve(comma>=0?result.slice(comma+1):result);
+    };
+    reader.onerror=()=>reject(new Error('read-failed'));
+    reader.readAsDataURL(file);
+  });
+}
+async function scanReceiptWithGemini(file){
+  const apiKey=(state.emp.geminiApiKey||'').trim();
+  const status=document.getElementById('attachStatus');
+  if(!apiKey)return; // no key — leave the form for manual entry, don't block the attach
+  const prevStatus=status?status.textContent:'';
+  try{
+    if(status)status.textContent='✨ AI กำลังอ่านใบเสร็จ…';
+    const base64=await fileToBase64(file);
+    const mimeType=file.type||'image/jpeg';
+    const prompt='You are reading a Thai or English receipt / payment slip image for a corporate expense reimbursement system.\n'+
+      'Return ONLY a JSON object of the form {"date":"YYYY-MM-DD","amount":123.45} — no markdown, no explanation.\n\n'+
+      'Rules:\n'+
+      '- "date": the transaction date on the receipt, converted to ISO format YYYY-MM-DD. If the year is a Thai Buddhist Era year (typically 543 years ahead of the Gregorian year, e.g. 2567), convert it to the Gregorian year by subtracting 543. If no date is visible, use null.\n'+
+      '- "amount": the grand total / net amount actually paid (not a subtotal or a single line item), as a plain number with up to 2 decimals, no currency symbol, no thousands separators. If no clear total is visible, use null.';
+    const res=await withTimeout(fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-goog-api-key':apiKey},
+      body:JSON.stringify({
+        contents:[{parts:[{text:prompt},{inline_data:{mime_type:mimeType,data:base64}}]}],
+        generationConfig:{responseMimeType:'application/json'}
+      })
+    }),25000);
+    if(!res.ok)throw new Error('http-'+res.status);
+    const data=await res.json();
+    if(data.promptFeedback&&data.promptFeedback.blockReason)throw new Error('blocked');
+    const raw=data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0]&&data.candidates[0].content.parts[0].text;
+    if(!raw)throw new Error('empty');
+    const parsed=JSON.parse(raw);
+    const filled=[];
+    if(parsed&&typeof parsed.date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(parsed.date)){
+      document.getElementById('fDate').value=parsed.date;
+      filled.push('date');
+    }
+    if(parsed&&parsed.amount!==null&&parsed.amount!==undefined&&!isNaN(parseFloat(parsed.amount))&&parseFloat(parsed.amount)>0){
+      document.getElementById('fAmount').value=parseFloat(parsed.amount).toFixed(2);
+      filled.push('amount');
+    }
+    if(status){
+      status.textContent=filled.length
+        ? '✨ AI filled '+filled.join(' & ')+' from the receipt — please double-check before saving.'
+        : (prevStatus||'Attached — could not read date/amount automatically, please fill in manually.');
+    }
+  }catch(e){
+    // Per spec: never block the attach — just leave the form for manual entry.
+    if(status)status.textContent=prevStatus||'Attached — please fill date & amount manually.';
+  }
+}
+
 
 function showAttachPreview(url,isLinked){
   document.getElementById('attachImg').src=url;
