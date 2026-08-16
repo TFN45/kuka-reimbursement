@@ -1,8 +1,8 @@
 # KUKA OS
 
-**A personal work-management PWA for field engineers — expense reimbursement, overtime tracking, tasks, notes, and a unified calendar overview, all running offline on your phone.**
+**A personal work-management PWA for field automation & robotics engineers — smart expense reimbursement with AI Vision, overtime tracking, timesheet generation, task management, site notes, and a unified calendar overview running 100% client-side.**
 
-Built for automation & robotics field engineers who move between customer sites and need one place to track expenses, log overtime, plan work, and keep technical notes — without depending on a server or losing data to a spotty connection.
+Built specifically for robotics and automation field engineers who move between customer plants and need a fast, dependable tool to record expenses, track overtime hours, plan field jobs, and document technical findings — without relying on a backend server or risking data loss from poor factory connectivity.
 
 🔗 **Live app:** [tfn45.github.io/kuka-reimbursement](https://tfn45.github.io/kuka-reimbursement/)
 
@@ -11,120 +11,114 @@ Built for automation & robotics field engineers who move between customer sites 
 ## Contents
 
 - [Overview](#overview)
-- [Features](#features)
-- [Getting started](#getting-started)
-- [Data & privacy](#data--privacy)
-- [Backup & restore](#backup--restore)
-- [Tech stack](#tech-stack)
-- [Project structure](#project-structure)
-- [Browser support](#browser-support)
-- [Known limitations](#known-limitations)
+- [Key Features](#key-features)
+  - [📅 Overview & Calendar](#-overview--calendar)
+  - [💰 Expense Reimbursement & AI Receipt Scanner](#-expense-reimbursement--ai-receipt-scanner)
+  - [🕐 Overtime (OT) & Timesheet Generator](#-overtime-ot--timesheet-generator)
+  - [📋 Tasks & 📝 Technical Site Notes](#-tasks---technical-site-notes)
+  - [✨ Domain-Aware AI Assistant (Gemini Flash)](#-domain-aware-ai-assistant-gemini-flash)
+- [Getting Started](#getting-started)
+- [Data Privacy & Security](#data-privacy--security)
+- [Backup & Disaster Recovery](#backup--disaster-recovery)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Browser Support](#browser-support)
 - [License](#license)
 
 ---
 
 ## Overview
 
-KUKA OS is a single-file Progressive Web App (PWA) — no build step, no backend, no account. Install it to your phone's home screen and it runs like a native app, fully offline, with all data stored locally on the device.
+KUKA OS is a zero-dependency, single-file Progressive Web App (PWA). It requires no build step, no backend server, and no cloud account. Install it directly from the browser to run standalone with persistent local storage.
 
-It started as an expense reimbursement form and grew into five connected modules, all sharing one customer/site database so you never re-type a company name twice:
+All modules share a unified customer/site database so you never have to re-type company names or provinces twice:
 
 | Module | Purpose |
 |---|---|
-| 📅 **Overview** | Home screen — a calendar aggregating every Expense, OT, Task, and Note by date, plus a quick-add button |
-| 💰 **Expense** | Itemized reimbursement claims with receipt photos, exported as a formal bilingual PDF |
-| 🕐 **Overtime (OT)** | Check-in/out based OT logging with configurable pay rates, exported as a company-matching OT approval form |
-| 📋 **Tasks** | Jobs and to-dos tied to a customer site and due date |
-| 📝 **Notes** | Technical notes per site, with photo attachments |
+| 📅 **Overview** | Home screen — Month & Week agenda views aggregating Expense, OT, Task, and Note items with quick-action shortcuts |
+| 💰 **Expense** | Smart reimbursement tracking with **Gemini Multimodal AI Vision** receipt reading and formal PDF export |
+| 🕐 **Overtime (OT)** | Check-in/out OT logger with after-midnight rate splitting, **OT Approval Form**, and **Weekly Timesheet Form** exports |
+| 📋 **Tasks** | Site-linked job schedule with date range tracking and status filtering |
+| 📝 **Notes** | Field engineering service logs with multi-photo attachments and AI report polishing |
+| ⚙️ **Settings** | Personal profile, digital signature pad, custom work week, holiday imports, AI configuration, and backup vaults |
 
-## Features
+---
 
-### 📅 Overview / Calendar
-- Month-grid calendar with today highlighted and a colored dot per module for any day with activity
-- Configurable **work week** (tick which weekdays you work) — non-working days and imported public holidays are shown in red
-- Tap any day to see everything that happened on it in one popup
-- Floating **+** button for quick-adding an Expense, OT entry, Task, or Note from anywhere
+## Key Features
 
-### 💰 Expense Reimbursement
-- Per-item company/province picker backed by a searchable, reusable site database
-- Attach multiple receipt photos per line item, stored at original quality
-- Link one receipt across several items (e.g. a single toll statement covering many days)
-- Draft → Submitted → Approved → Paid status tracking, with search and filtering
-- Formal bilingual PDF export with auto-fitting text, repeating table headers, and receipt appendices
-- Mileage calculator (distance × rate)
-- CSV export and month-over-month spending summary
+### 📅 Overview & Calendar
+- **Interactive Calendar & Agenda Views:** Switch between a full Month Grid and a 6-month continuous Week Agenda.
+- **Custom Work Week & Holiday Highlighting:** Configurable work week with imported public holidays highlighted in red.
+- **Floating Quick-Add (FAB):** Rapidly log an Expense, OT shift, Task, or Note from anywhere.
+- **Live Header Clock:** Real-time digital clock display in the top bar.
 
-### 🕐 Overtime (OT)
-- Check-in/check-out based logging with day types: Normal, Callback/After-Hours, Weekly Holiday, Public Holiday, and a custom multiplier
-- Auto-calculates OT hours from configurable standard hours and break time
-- Automatically splits a shift that crosses midnight into two correctly-dated entries, with a configurable after-midnight rate (separate weekday / holiday multipliers)
-- Optional pay estimate based on a monthly salary (30-day basis) — shown in-app only, never on the exported form
-- Exports a bilingual OT approval form matching a standard Thai company template, with signature
-- Public holidays can be imported from a `.ics` calendar file (e.g. Google's "Holidays in Thailand") or added manually, and surface as a warning (not an auto-selection) when logging OT on that date
+### 💰 Expense Reimbursement & AI Receipt Scanner
+- **✨ Gemini Multimodal Vision Scanner:** Auto-extracts transaction dates (automatically converting Thai Buddhist Era พ.ศ. to Gregorian ค.ศ.) and grand total amounts directly into input fields.
+- **Local OCR Fallback:** On-device Tesseract OCR engine suggests totals when offline or without an API key.
+- **Smart Photo Sharing (Web Share Target):** Share receipt photos directly from your phone’s camera or gallery app into KUKA OS.
+- **Statement Multi-Linking:** Link one bulk invoice/statement across multiple individual line items without duplicating image storage.
+- **Mileage Calculator:** Quick calculation mode for distance-based claims (km × rate).
+- **Formal Corporate PDF Export:** Generates formal English reimbursement reports with embedded signature, repeating headers, and high-res receipt appendix pages.
 
-### 📋 Tasks & 📝 Notes
-- Tasks: title, site, due date, and status (Not Started / In Progress / Done), filterable by status
-- Notes: freeform technical notes per site with multi-photo attachments, full-text search
+### 🕐 Overtime (OT) & Timesheet Generator
+- **Automatic Shift & Midnight Splitting:** Overnight shifts crossing midnight are automatically split into two correctly-dated entries with dedicated after-midnight multiplier rates.
+- **Duplicate Date Guard:** Warns and prompts to edit if an OT entry already exists on the selected date.
+- **Dual Formal Document Exports:**
+  1. **OT Approval Form (เอกสารขออนุมัติค่าล่วงเวลา):** Standard bilingual form grouping 1×, 1.5×, 3×, and custom multipliers.
+  2. **Timesheet Form (ใบลงเวลาทำงาน):** Full monthly attendance log organized in weekly grid blocks, showing daily check-in/out times, non-working days, and public holidays.
+- **Estimated OT Pay:** In-app real-time pay projection based on base salary (displayed in-app only; excluded from official PDF submissions).
 
-### ⚙️ Settings
-- Employee & approval contact details, saved signature (draw once, reused on every export)
-- OT calculation settings: standard hours, break time, after-midnight rates, base salary
-- Work week and public holiday management
-- Dark mode (true-black, OLED-optimized)
-- Storage usage indicator and full JSON backup/restore
+### 📋 Tasks & 📝 Technical Site Notes
+- **Tasks & Schedule:** Track job progress (Not Started / In Progress / Done) with full date range support across customer sites.
+- **Field Service Notes:** Capture on-site findings with multi-photo attachments and instant full-text search.
+- **Working Abroad Mode:** Toggle on any form to freely input international cities and countries outside Thailand.
 
-## Getting started
+### ✨ Domain-Aware AI Assistant (Gemini Flash)
+- Integrated with **Google Gemini 3.5 Flash** for low-latency, zero-cost text and vision processing.
+- **Context-Aware Engineering Polish:** Converts casual Thai, shorthand, or broken English into formal corporate English tailored for KUKA robotics and automation systems (preserving technical terms like *smartPAD, KRC4/KRC5, KRL, WorkVisual, mastering/EMD, resolver, PLC handshakes,* and *FOV vision calibration*).
+- **Strict Semantic Accuracy:** Strict prompt guardrails ensure the AI never invents false diagnoses, phantom root causes, or unverified test results.
 
-1. Open the [live app](https://tfn45.github.io/kuka-reimbursement/) on your phone.
-2. Add it to your home screen (Chrome/Edge on Android: menu → **Add to Home Screen**; Safari on iOS: share → **Add to Home Screen**).
-3. Open it from the home screen icon — it now runs standalone, offline-capable.
-4. Fill in your details under **Settings** first (name, employee ID, approving manager, signature).
+---
 
-No sign-up, no server, nothing to configure beyond your own details.
+## Getting Started
 
-## Data & privacy
+1. Open the [Live App](https://tfn45.github.io/kuka-reimbursement/) in your mobile browser (Chrome/Edge on Android, Safari on iOS).
+2. Add to Home Screen:
+   - **Android:** Tap `⋮` (Menu) → **Install App** or **Add to Home Screen**.
+   - **iOS:** Tap `Share` → **Add to Home Screen**.
+3. Launch the app from your home screen icon.
+4. Navigate to **Settings** to set up:
+   - Employee details, position, and manager approval info.
+   - Draw your digital signature (saved for all future PDF exports).
+   - *(Optional)* Add your **Google Gemini API Key** (Free Tier from [Google AI Studio](https://aistudio.google.com/)) to enable AI Vision receipt scanning and English polishing.
 
-- All data is stored **locally on your device** using IndexedDB (falls back to browser storage on unsupported browsers).
-- Nothing is uploaded anywhere. There is no backend and no analytics.
-- Receipts and note photos are stored at original quality where the browser supports it.
-- Uninstalling the app or clearing site data removes everything — back up regularly (see below).
+---
 
-## Backup & restore
+## Data Privacy & Security
 
-**Settings → Data Backup** exports a single `.json` file per year containing that year's Expense and OT records, plus your full Tasks, Notes, holidays, and profile — including all photos as embedded data.
+- **100% Client-Side Storage:** All database entries, receipts, and photos are stored inside your device's `IndexedDB`. No personal data is sent to any private backend server.
+- **API Key Isolation:** Your Gemini API Key is stored strictly in local device storage and is **never included in backup files or CSV exports**.
+- **External Network Calls:** API calls are made directly and exclusively from your device to official Google endpoints (`generativelanguage.googleapis.com`) only when you tap AI actions or attach receipts.
 
-Restoring is a **safe merge**: it only adds months/tasks/notes that don't already exist on the device and never overwrites existing data. Import the same file twice and nothing is duplicated.
+---
 
-## Tech stack
+## Backup & Disaster Recovery
 
-- Vanilla HTML/CSS/JavaScript — no framework, no build step, no dependencies
-- IndexedDB for storage, with a graduated fallback chain for older browsers
-- Service worker (`sw.js`) for offline caching, network-first for the app shell
-- `window.print()` + print-specific CSS for PDF generation (no PDF library)
-- Installable as a PWA via `manifest.json`
+- **📸 Auto Backup Snapshots:** Internal rolling snapshots (with segment checksum verification) are saved automatically into a dedicated IndexedDB store every N days, with one-tap restore.
+- **⬇ Year-Based JSON Export:** Exports structured data and full-resolution embedded images into an encrypted/portable `.json` file for off-device safeguarding (Google Drive, email, etc.).
+- **Safe Merge Restore:** Importing a backup file adds missing months/records without overwriting or deleting existing local data.
+- **📊 CSV Export:** Clean tabular export for spreadsheets, ERP systems, or SAP Concur integration.
 
-## Project structure
+---
 
-```
-├── index.html      # The entire application — markup, styles, and logic
-├── sw.js           # Service worker: offline caching strategy
-├── manifest.json   # PWA manifest: icons, name, install shortcuts
-├── icon-192.png    # App icon (192×192)
-└── icon-512.png    # App icon (512×512)
-```
+## Tech Stack
 
-Everything lives in `index.html` by design — the app has no build step, so what you edit is exactly what runs.
+- **Core:** Pure Vanilla HTML5, Modern CSS3 (Dark/Light OLED Theme), Vanilla JavaScript (ES6+).
+- **Database:** Browser `IndexedDB` with fallback support.
+- **PWA & Offline:** Service Worker cache-first shell + Web App Manifest (`manifest.json`) + Web Share Target API.
+- **AI & Vision:** Google Gemini 3.5 Flash API (Multimodal Vision & NLP) + Tesseract.js (Offline fallback).
+- **PDF Engine:** Native CSS Paged Media (`@page`, `@media print`) via `window.print()` — no heavy third-party PDF libraries required.
 
-## Browser support
+---
 
-Built and tested for **Chrome/Edge on Android**. Uses standard, broadly-supported web APIs (IndexedDB, Service Worker, `<input type="file">` with camera capture, `window.print()`), so it should work on any modern Chromium or Safari-based mobile browser, though the PDF export layout is tuned for mobile Chrome's print-to-PDF behavior.
-
-## Known limitations
-
-- No cloud sync — data lives on one device unless backed up and restored manually elsewhere.
-- OT rate calculations are a configurable *estimate*; always verify results against your company's actual OT policy before submitting.
-- Public holiday import requires manually exporting an `.ics` file from Google Calendar (or another calendar app) — there's no live calendar sync, since a browser-only PWA can't call Google's API without a backend.
-
-## License
-
-Personal-use project. No license file included — treat as all-rights-reserved unless the repository owner specifies otherwise.
+## Project Structure
