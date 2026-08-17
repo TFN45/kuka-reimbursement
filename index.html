@@ -324,6 +324,13 @@ main{padding:14px 14px 0;max-width:560px;margin:0 auto}
   border-radius:50%;animation:aiPolishSpin .6s linear infinite;
 }
 @keyframes aiPolishSpin{to{transform:rotate(360deg)}}
+.copy-link{
+  float:right;font-size:.72rem;font-weight:700;color:var(--kuka-dark);
+  cursor:pointer;text-transform:none;letter-spacing:0;
+  padding:2px 6px;margin:-2px 2px 0 0;border-radius:5px;
+}
+.copy-link:active{background:var(--kuka-soft)}
+.copy-link[data-copied="1"]{color:#2E7D32}
 .ai-polish-link[data-busy="1"]{opacity:.5;pointer-events:none}
 :root[data-theme="dark"] .ai-polish-link:active{background:#241A30}
 .required-mark{color:var(--kuka);font-weight:700}
@@ -1449,7 +1456,7 @@ try{
 <div class="overlay" id="taskOverlay">
   <div class="sheet">
     <h2><span id="taskSheetTitle">Add Task</span><button onclick="closeTaskSheet()" aria-label="Close">✕</button></h2>
-    <div class="field"><label>Task Title <span class="required-mark">*</span><span class="ai-polish-link" id="taskTitleAiLink" onclick="aiRephrase('taskTitle','task_title')">✨ AI Writing</span></label><input id="taskTitle" placeholder="e.g. Replace conveyor guard, commission KR180"></div>
+    <div class="field"><label>Task Title <span class="required-mark">*</span><span class="ai-polish-link" id="taskTitleAiLink" onclick="aiRephrase('taskTitle','task_title')">✨ AI Writing</span><span class="copy-link" onclick="copyFieldValue('taskTitle',this)">📋 Copy</span></label><input id="taskTitle" placeholder="e.g. Replace conveyor guard, commission KR180"></div>
     <div class="field">
       <label>Customer / Site</label>
       <label class="abroad-check"><input type="checkbox" id="taskAbroadCheck" onchange="toggleAbroadMode('task')"> 🌍 Working outside Thailand — let me type location freely</label>
@@ -1478,7 +1485,7 @@ try{
         <option value="done">Done</option>
       </select>
     </div>
-    <div class="field"><label>Details <span class="ai-polish-link" id="taskDetailsAiLink" onclick="aiRephrase('taskDetails','task_details')">✨ AI Writing</span></label><input id="taskDetails" placeholder="Optional notes about this task"></div>
+    <div class="field"><label>Details <span class="ai-polish-link" id="taskDetailsAiLink" onclick="aiRephrase('taskDetails','task_details')">✨ AI Writing</span><span class="copy-link" onclick="copyFieldValue('taskDetails',this)">📋 Copy</span></label><input id="taskDetails" placeholder="Optional notes about this task"></div>
     <div class="btn-row">
       <button class="btn btn-ghost" onclick="closeTaskSheet()">Cancel</button>
       <button class="btn btn-primary" onclick="saveTask()">Save</button>
@@ -2523,6 +2530,31 @@ async function aiRephrase(targetInputId,contextType){
   }finally{
     el.disabled=false;
     if(link)link.removeAttribute('data-busy');
+  }
+}
+
+async function copyFieldValue(fieldId,btnEl){
+  const el=document.getElementById(fieldId);
+  const text=(el&&el.value||'').trim();
+  if(!text){alert('Nothing to copy yet.');return;}
+  try{
+    if(navigator.clipboard&&window.isSecureContext){
+      await navigator.clipboard.writeText(text);
+    }else{
+      const ta=document.createElement('textarea');
+      ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
+      document.body.appendChild(ta);ta.focus();ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    if(btnEl){
+      const original=btnEl.textContent;
+      btnEl.textContent='✓ Copied';
+      btnEl.setAttribute('data-copied','1');
+      setTimeout(()=>{btnEl.textContent=original;btnEl.removeAttribute('data-copied');},1200);
+    }
+  }catch(e){
+    alert('Could not copy — please select and copy the text manually.');
   }
 }
 function parseAmountFromText(text){
