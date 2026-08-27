@@ -3960,6 +3960,9 @@ function companyProvincePairs(entryLike){
   if(Array.isArray(entryLike.locations)&&entryLike.locations.length){
     return entryLike.locations.map(name=>({name,province:entryLike.province||''}));
   }
+  if(entryLike.location&&typeof entryLike.location==='object'){
+    return[{name:entryLike.location.name||'',province:entryLike.location.province||''}];
+  }
   if(entryLike.location){
     return[{name:entryLike.location,province:entryLike.province||''}];
   }
@@ -4414,23 +4417,25 @@ function updateOTCalcPreview(){
 }
 document.getElementById('otTimeIn').addEventListener('input',updateOTCalcPreview);
 
-/* ---------- OT location picker (single company+province, shares database with Expense) ---------- */
-let otSelectedLocation=null;
+/* ---------- OT location picker (multiple company+province tags, shares database with Expense) ---------- */
+let otLocationTags=[];
 function renderOTLocTag(){
   const wrap=document.getElementById('otLocTag');
   if(!wrap)return;
-  if(!otSelectedLocation){
+  if(otLocationTags.length===0){
     wrap.innerHTML='<div class="tag-empty">No site selected yet — search a company below, then its province</div>';
     return;
   }
-  const preset=state.emp.locPresets.find(p=>p.name.toLowerCase()===otSelectedLocation.name.toLowerCase());
-  const shortName=preset?preset.abbr:otSelectedLocation.name;
-  const provinceAbbr=PROVINCE_ABBR[otSelectedLocation.province]||'';
-  const display=shortName+(provinceAbbr?`(${provinceAbbr})`:'');
-  wrap.innerHTML=`<span class="tag-pill" title="${esc(otSelectedLocation.name)}${otSelectedLocation.province?', '+esc(otSelectedLocation.province):''}">${esc(display)}<span class="tag-remove" onclick="removeOTLocation()">✕</span></span>`;
+  wrap.innerHTML=otLocationTags.map((t,idx)=>{
+    const preset=state.emp.locPresets.find(p=>p.name.toLowerCase()===t.name.toLowerCase());
+    const shortName=preset?preset.abbr:t.name;
+    const provinceAbbr=PROVINCE_ABBR[t.province]||'';
+    const display=shortName+(provinceAbbr?`(${provinceAbbr})`:'');
+    return `<span class="tag-pill" title="${esc(t.name)}${t.province?', '+esc(t.province):''}">${esc(display)}<span class="tag-remove" onclick="removeOTLocation(${idx})">✕</span></span>`;
+  }).join('');
 }
-function removeOTLocation(){
-  otSelectedLocation=null;
+function removeOTLocation(idx){
+  otLocationTags.splice(idx,1);
   renderOTLocTag();
 }
 function filterOTCompanies(){
@@ -4482,18 +4487,23 @@ function selectOTProvince(p){
 function finalizeOTLocation(name,province){
   let preset=state.emp.locPresets.find(p=>p.name.toLowerCase()===name.toLowerCase());
   const canonicalName=preset?preset.name:name;
-  if(!preset){
-    const suggested=autoAbbrev(name);
-    const typed=prompt(`New company: "${name}"\n\nSet a short abbreviation for the compact tag view (e.g. DENSO):`,suggested);
-    const abbr=(typed===null?suggested:(typed.trim()||suggested)).toUpperCase();
-    preset={name,abbr,province};
-    state.emp.locPresets.push(preset);
+  const dup=otLocationTags.some(t=>t.name.toLowerCase()===canonicalName.toLowerCase()&&t.province===province);
+  if(dup){
+    alert(`"${canonicalName} — ${province}" is already added.`);
   }else{
-    preset.province=province;
+    if(!preset){
+      const suggested=autoAbbrev(name);
+      const typed=prompt(`New company: "${name}"\n\nSet a short abbreviation for the compact tag view (e.g. DENSO):`,suggested);
+      const abbr=(typed===null?suggested:(typed.trim()||suggested)).toUpperCase();
+      preset={name,abbr,province};
+      state.emp.locPresets.push(preset);
+    }else{
+      preset.province=province;
+    }
+    persistProfile();
+    otLocationTags.push({name:canonicalName,province});
+    renderOTLocTag();
   }
-  persistProfile();
-  otSelectedLocation={name:canonicalName,province};
-  renderOTLocTag();
   document.getElementById('otCompanyInput').value='';
   document.getElementById('otProvinceInput').value='';
 }
@@ -5086,7 +5096,7 @@ function getEventsListForDate(dateStr){
     if(e.date===dateStr)items.push({cat:'expense',title:e.desc||'(No description)',sub:(combinedLocation(e)?combinedLocation(e)+' · ':'')+THB(e.amount)+' THB'});
   }));
   Object.values(state.otMonths).forEach(arr=>arr.forEach(e=>{
-    if(e.date===dateStr)items.push({cat:'ot',title:`${e.timeIn}–${e.timeOut}`,sub:e.details||(e.location?otLocationDisplay(e.location):'')});
+    if(e.date===dateStr)items.push({cat:'ot',title:`${e.timeIn}–${e.timeOut}`,sub:e.details||combinedLocation(e)});
   }));
   state.tasks.forEach(t=>{
     if(taskDatesInRange(t).includes(dateStr)){
@@ -5352,7 +5362,7 @@ function openOTSheet(i=null){
     timeIn:state.emp.otStdCheckIn||'09:00',
     timeOut:state.emp.otStdCheckOut||'18:00',
     dayType:'normal',
-    location:null,
+    companies:[],
     details:''
   };
   const e=isNew?defaults:state.otEntries[i];
@@ -5360,14 +5370,8 @@ function openOTSheet(i=null){
   document.getElementById('otTimeIn').value=e.timeIn||'';
   document.getElementById('otTimeOut').value=e.timeOut||'';
   document.getElementById('otDetails').value=e.details||'';
-  // Support both the new {name,province} object and legacy plain-string location
-  if(e.location&&typeof e.location==='object'){
-    otSelectedLocation={name:e.location.name||'',province:e.location.province||''};
-  }else if(e.location){
-    otSelectedLocation={name:e.location,province:''};
-  }else{
-    otSelectedLocation=null;
-  }
+  // Supports new {companies:[...]} array, and legacy single {name,province} object or plain-string location
+  otLocationTags=companyProvincePairs(e);
   document.getElementById('otCompanyInput').value='';
   document.getElementById('otProvinceInput').value='';
   renderOTLocTag();
@@ -5392,7 +5396,7 @@ function saveOTEntry(){
     finalizeOTLocation(leftoverCompany,provinceMatch);
     leftoverCompany='';leftoverProvince='';
   }
-  const isBlank=!date&&!timeIn&&!timeOut&&!otSelectedLocation&&!leftoverCompany&&!leftoverProvince&&!details;
+  const isBlank=!date&&!timeIn&&!timeOut&&otLocationTags.length===0&&!leftoverCompany&&!leftoverProvince&&!details;
   if(isBlank){closeOTSheet();return;}
   if(leftoverCompany||leftoverProvince){
     alert(`You started adding a site (${leftoverCompany||'no name yet'} / ${leftoverProvince||'no province yet'}) but haven't finished pairing it with a province. Please complete it or clear the box before saving.`);
@@ -5443,11 +5447,11 @@ function saveOTEntry(){
       `\nContinue?`
     );
     if(!proceed)return;
-    const locObj=otSelectedLocation?{name:otSelectedLocation.name,province:otSelectedLocation.province}:null;
+    const locObj=otLocationTags.slice();
     const entryA={
       id:otEditIndex===null?uid():state.otEntries[otEditIndex].id,
       date,timeIn,timeOut:'23:59',dayType:otSelectedDayType,
-      location:locObj,details,
+      companies:locObj,details,
       ot1x:a1x,ot15x:a15x,ot3x:a3x,
       otCustom:aCustom,customRate
     };
@@ -5460,7 +5464,7 @@ function saveOTEntry(){
       date:nextDate,timeIn:'00:00',timeOut,
       dayType:useStd3x?'public_holiday':'custom',
       afterMidnight:true,midnightRate,
-      location:locObj,
+      companies:locObj,
       details:details?details+' (continued past midnight)':'Continued past midnight',
       ot1x:0,ot15x:0,
       ot3x:useStd3x?nightOT:0,
@@ -5497,7 +5501,7 @@ function saveOTEntry(){
   const e={
     id:otEditIndex===null?uid():state.otEntries[otEditIndex].id,
     date,timeIn,timeOut,dayType:otSelectedDayType,
-    location:otSelectedLocation?{name:otSelectedLocation.name,province:otSelectedLocation.province}:null,
+    companies:otLocationTags.slice(),
     details,
     ot1x:calc.ot1x,ot15x:calc.ot15x,ot3x:calc.ot3x,
     otCustom:calc.otCustom,customRate
@@ -5575,7 +5579,7 @@ function renderOT(){
           <div class="entry-desc">${esc(e.timeIn)}–${esc(e.timeOut)}</div>
           <span class="status-badge status-${e.afterMidnight?'paid':'draft'}">${e.afterMidnight?`After Midnight (${e.midnightRate!==undefined?e.midnightRate:3}×)`:(dayTypeLabel[e.dayType]||'Normal')}</span>
         </div>
-        ${e.location?`<div class="entry-purpose">📍 ${esc(otLocationDisplay(e.location))}</div>`:''}
+        ${combinedLocation(e)?`<div class="entry-purpose">📍 ${esc(combinedLocation(e))}</div>`:''}
         ${e.details?`<div class="entry-purpose">${esc(e.details)}</div>`:''}
         <div class="entry-amt">${hrsParts.length?hrsParts.join(' · '):'0.00h (no OT)'}</div>
         ${payLine}
@@ -5654,7 +5658,7 @@ function buildOTPrint(){
     const e=exportEntries[i];
     const detailsText=e?[
       e.details,
-      e.location?`📍 ${otLocationDisplay(e.location)}`:'',
+      combinedLocation(e)?`📍 ${combinedLocation(e)}`:'',
       e.otCustom?`OT: ${e.otCustom.toFixed(2)} hrs @ ${e.customRate||'?'}×`:''
     ].filter(Boolean).join(' — '):'';
     rows+=`<tr>
@@ -5767,7 +5771,7 @@ function buildTimesheetPrint(){
       const lbl=TS_DAY_LABELS[weekday];
       const holiday=holidayFor(dateStr);
       const remarkText=e
-        ?[e.details,e.location?`📍 ${otLocationDisplay(e.location)}`:''].filter(Boolean).join(' — ')
+        ?[e.details,combinedLocation(e)?`📍 ${combinedLocation(e)}`:''].filter(Boolean).join(' — ')
         :(holiday?`🎌 ${holiday.name}`:'');
       const isHoliday=!isWorkDay(weekday)||!!holiday;
       rows+=`<tr${isHoliday?' class="ts-holiday"':''}>
