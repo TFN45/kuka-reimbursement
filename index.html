@@ -4333,6 +4333,13 @@ function timeToMinutes(t){
   const[h,m]=t.split(':').map(Number);
   return h*60+m;
 }
+function getOTBreakMinutes(){
+  const v=state.emp.otBreakMinutes;
+  // Settings shows "60" as the default before the user ever touches the field,
+  // but state stays undefined until they do — fall back to that same default
+  // here so calculations match what's on screen. An explicit 0 is respected.
+  return(v===undefined||v===null||v==='')?60:(Number(v)||0);
+}
 function getOTStandardHours(){
   const ci=state.emp.otStdCheckIn||'09:00';
   const co=state.emp.otStdCheckOut||'18:00';
@@ -4340,7 +4347,7 @@ function getOTStandardHours(){
   const[coH,coM]=co.split(':').map(Number);
   let mins=(coH*60+coM)-(ciH*60+ciM);
   if(mins<0)mins+=24*60;
-  mins-=Number(state.emp.otBreakMinutes)||0;
+  mins-=getOTBreakMinutes();
   return Math.max(0,mins/60);
 }
 function getOTHourlyRate(){
@@ -4369,7 +4376,7 @@ function calcOTHours(timeIn,timeOut,dayType,customRate){
   let totalMinutes=outMinutes-(inH*60+inM);
   if(totalMinutes<0)totalMinutes+=24*60;
   const stdHours=getOTStandardHours();
-  const breakMin=Number(state.emp.otBreakMinutes)||0;
+  const breakMin=getOTBreakMinutes();
   // A callback is a separate short trip after the normal shift — no meal break
   // is taken, and the standard-hours allowance was already served earlier.
   if(dayType!=='callback')totalMinutes-=breakMin;
